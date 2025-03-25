@@ -245,11 +245,15 @@ def DrawBoard(rows, cols, pxarray, pallet, C2C):
                     pxarray[x,y] = pygame.Color(pallet["black"])
                     C2C[x][y]='inf'
                     
-def A_Star(start_node, goal_node, OL, parent, V, C2C):
-    heapq.heappush(OL, start_node)
-    start_state, x_v_idx, y_v_idx, theta_v_idx = round_and_get_v_index(start_node)
-    C2C[x_v_idx, y_v_idx] = 0.0
+def A_Star(start_node, goal_node, OL, parent, V, C2C, costsum):
     
+    start_state, x_v_idx, y_v_idx, theta_v_idx = round_and_get_v_index(start_node)
+    start_cost_state = (x_v_idx, y_v_idx, theta_v_idx)
+    C2C[int(x_v_idx), int(y_v_idx)] = 0.0
+    costsum[start_cost_state] = 0.0 + euclidean_distance(start_node, goal_node)
+
+    heapq.heappush(OL, start_node)
+          
     while OL:
         node = heapq.heappop(OL)
         
@@ -274,11 +278,14 @@ def A_Star(start_node, goal_node, OL, parent, V, C2C):
                 child_node_fixed, child_x_v_idx, child_y_v_idx, child_theta_v_idx = round_and_get_v_index(child_node)
                 child_cost_node = (child_x_v_idx, child_y_v_idx, child_theta_v_idx)
                 
-                not_object = InObjectSpace(child_node[0], child_node[1])
+                not_object = InObjectSpace(int(child_node_fixed[0]), int(child_node_fixed[1]))
                 
                 if(V[child_cost_node] != 1 and not_object):
-                    #if(Not in OL or Cost = inf):
-                    #   parent[child_node] = fixed_node
+                    # What is the best way to check the OL here wihtout having to search it entirely? Maybe simply knowing that 
+                    # the C2C is not infinity or -1 (checked previously) 
+                    if(C2C[int(child_node_fixed[0]), int(child_node_fixed[1])):
+                       parent[child_node] = fixed_node
+                       
                 else: continue
         
 
