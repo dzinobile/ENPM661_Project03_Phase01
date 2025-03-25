@@ -330,13 +330,13 @@ def check_if_visited(V, curr_node_v, stepsize):
     h, w = V.shape[:2]
     x, y, theta = curr_node_v 
 
-    step_size_i = int(stepsize * 2)
+    step_size_i = int(stepsize // 2)
 
     x1 = max(x - step_size_i, 0)
     x2 = min(x + step_size_i, w-1)
     y1 = max(y - step_size_i, 0)
     y2 = min(y + step_size_i, h-1)
-    print(x1, x2, y1, y2)
+    # print(x1, x2, y1, y2)
 
     sum_over_region = np.sum(V[y1:y2, x1:x2, :])
     
@@ -879,6 +879,8 @@ else: # Use User Provided Start/ Goal State
 
 # Step 3: Run Search Algorithm
 start = time.time()
+
+
 
 # %% DEBUG A STAR
 solution_path = None
