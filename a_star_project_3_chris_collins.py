@@ -710,18 +710,17 @@ def a_star(start_state, goal_state, map_data, cost_matrix, obstacles, r=1):
 
     """
     solution_path = None
-    pq            = [] # Open List
-    cost_to_come  = {} # Closed List
-    explored_path = [] # List of all nodes expanded in search
-    parent        = {start_state: None}  # Dictionary to map child->parent to backtrack path to goal state
+    pq            = []                                          # Open List
+    cost_to_come  = {}                                          # Closed List
+    explored_path = []                                          # List of all nodes expanded in search
+    parent        = {start_state: None}                         # Dictionary to map child->parent to backtrack path to goal state
     f_start       = euclidean_distance(start_state, goal_state) # Heuristic function for start state 
     thresh        = 0.5
-    V             = np.zeros(
+    V             = np.zeros(                                   # Visited Nodes
                         (int(map_data.shape[0]/thresh),
                         int(map_data.shape[1]/thresh),
-                        12)) # Visited Nodes
+                        12)) 
     
-
     
     start_state, x_v_idx, y_v_idx, theta_v_idx    = round_and_get_v_index(start_state)
     print(start_state)
@@ -739,7 +738,7 @@ def a_star(start_state, goal_state, map_data, cost_matrix, obstacles, r=1):
         curr_node_round, curr_x_v_idx, curr_y_v_idx, curr_theta_v_idx = round_and_get_v_index(curr_node) # Round to nearest half 
         curr_cost_node = (curr_x_v_idx, curr_y_v_idx, curr_theta_v_idx)
         
-        if euclidean_distance(curr_node, goal_state) <= 1.5:              # If goal state reached, generate path from start to gaol and break the loop
+        if euclidean_distance(curr_node, goal_state) <= 4.5:              # If goal state reached, generate path from start to gaol and break the loop
             solution_path = generate_path(parent, goal_state)
             print("Found Solution to Goal:")
             print(goal_state)
@@ -838,7 +837,9 @@ def run_case(case=1, algo='A_star'):
     
     return start_state, goal_state, map_data, map_with_clearance, cost_matrix, obstacles, solution_path, cost_to_come, parent, explored_path
 
-# %%
+
+
+# %% START OF DEBUGGING
 found_valid = True
 start       = time.time()  
 algo       = "A_star"
@@ -855,7 +856,6 @@ map_data_wit_clearence   = map_with_clearance.copy()   # Copy map_data with obst
 
 end = time.time()
 
-# %%
 # Step 2: Get Start/ Goal State, either from user or generate random valid start/ goal state
 if generate_random: # Generate Random Start/ Goal State
     while not found_valid:
@@ -968,6 +968,10 @@ if solution_path is None:
 
 print("A_star Expanded States: ", len(explored_path))
 
+
+# %% IF GOT STUCK AND INTERRUPTED
+summed = np.sum(V, axis=2)
+plot_cost_matrix(summed, start_state, goal_state, title=f"V Matrix Heatmap {algo}" )
 
 
 
