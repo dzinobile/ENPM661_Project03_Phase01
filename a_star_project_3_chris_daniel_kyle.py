@@ -28,11 +28,11 @@ rows, cols = (615,250)
 # Define Lists
 OL = []
 CL = {}
-C2C = np.zeros(rows, cols) #[[0 for i in range(cols)] for j in range(rows)]
+C2C = np.zeros((rows, cols)) #[[0 for i in range(cols)] for j in range(rows)]
 index_ctr = 0
 solution = []
 thresh = 0.5
-V = np.zeros(int(rows/thresh), int(cols/thresh), 12)
+V = np.zeros((int(rows/thresh), int(cols/thresh), 12))
 
 # Define colors
 pallet = {"white":(255, 255, 255), 
@@ -52,16 +52,15 @@ def CheckOpenList(coords, open_list):
     temp_list = []
     present = False
     
-    while not open_list.empty():
-        item = open_list.get()
+    while open_list:
+        item = heapq.heappop(open_list)
         if item[3] == coords:
             present = True
         temp_list.append(item)
         
-    for item in temp_list:
-        open_list.put(item)
+    heapq.heapify(temp_list)
         
-    return present
+    return present, temp_list
 
 # Check if x_prime is in the Closed List
 # Closed list is a dictionary with each node's coords used as a key
@@ -96,14 +95,15 @@ def get_theta_index(theta):
 
 def round_and_get_v_index(node):
    #  Round x, y coordinates to nearest half to ensure we are on the center of a pixel
-    x           = round(node[0] * 2) / 2
-    y           = round(node[1] * 2) / 2
-    theta       = node[2]
-    x_v_idx     = int(x * 2)
-    y_v_idx     = int(y * 2)
-    theta_v_idx = get_theta_index(theta)
+   
+   x           = round(node[0] * 2, 1) / 2
+   y           = round(node[1] * 2, 1) / 2
+   theta       = node[2]
+   x_v_idx     = int(x * 2)
+   y_v_idx     = int(y * 2)
+   theta_v_idx = get_theta_index(theta)
 
-    return (x, y, theta), x_v_idx, y_v_idx, theta_v_idx
+   return (x, y, theta), x_v_idx, y_v_idx, theta_v_idx
 
 def get_xy(node, move_theta, r=1):
     theta = node[2] + move_theta
@@ -243,35 +243,40 @@ def DrawBoard(rows, cols, pxarray, pallet, C2C):
                      C2C[x][y]=-1
                 else:
                     pxarray[x,y] = pygame.Color(pallet["black"])
-                    C2C[x][y]='inf'
-                    
-def A_Star(start_node, goal_node, OL, parent, V, C2C, costsum):
+                    C2C[x][y]=np.inf
+#%%                    
+def A_Star(start_node, goal_node, OL, parent, V, C2C, costsum, step):
     
-    start_state, x_v_idx, y_v_idx, theta_v_idx = round_and_get_v_index(start_node)
+    start_state, x_v_idx, y_v_idx, theta_v_idx = round_and_get_v_index(start_node[1])
     start_cost_state = (x_v_idx, y_v_idx, theta_v_idx)
-    C2C[int(x_v_idx), int(y_v_idx)] = 0.0
-    costsum[start_cost_state] = 0.0 + euclidean_distance(start_node, goal_node)
+    C2C[int(start_state[0]), int(start_state[1])] = 0.0
+    costsum[start_cost_state] = 0.0 + round(euclidean_distance(start_node[1], goal_node),2)
 
     heapq.heappush(OL, start_node)
-          
+    
     while OL:
+        print("Popping node")
         node = heapq.heappop(OL)
         
         # Take popped node and center it, along with finding the index values for the V matrix
-        fixed_node, x_v_idx, y_v_idx, theta_v_idx = round_and_get_v_index(node)
+        fixed_node, x_v_idx, y_v_idx, theta_v_idx = round_and_get_v_index(node[1])
         
         # Add popped node to the closed list
         V[x_v_idx, y_v_idx, theta_v_idx] = 1
+        pxarray[int(fixed_node[0]),int(fixed_node[1])] = pygame.Color(pallet["blue"])
+        pygame.display.update()
         
         if(euclidean_distance(fixed_node, goal_node) <= 1.5 ):
             # GeneratePath(fixed_node, parent)
             print("Work In Progress, Please Excuse Our Dust")
+            return True
         else:
-            actions = [move_diag_up_60(),
-                       move_diag_up_30(),
-                       move_theta_0(),
-                       move_diag_down_30(),
-                       move_diag_down_60()
+            print("Finding children")
+            actions = [move_diag_up_60(fixed_node, step),
+                       move_diag_up_30(fixed_node, step),
+                       move_theta_0(fixed_node, step),
+                       move_diag_down_30(fixed_node, step),
+                       move_diag_down_60(fixed_node, step)
                        ]
             
             for child_node, child_cost in actions:
@@ -280,15 +285,38 @@ def A_Star(start_node, goal_node, OL, parent, V, C2C, costsum):
                 
                 not_object = InObjectSpace(int(child_node_fixed[0]), int(child_node_fixed[1]))
                 
-                if(V[child_cost_node] != 1 and not_object):
+                if not_object: 
+                    print("In object space")
+                    continue
+                
+                if(V[child_cost_node] == 0):
+                    print("Node not visited")
                     # What is the best way to check the OL here wihtout having to search it entirely? Maybe simply knowing that 
                     # the C2C is not infinity or -1 (checked previously) 
-                    if(C2C[int(child_node_fixed[0]), int(child_node_fixed[1])):
+                    
+                    if(C2C[int(child_node_fixed[0]), int(child_node_fixed[1])]  == np.inf):
+                       print("Creating child")
+                       cost2go = round(euclidean_distance(child_node_fixed, goal_node),2)
+                       cost2come = C2C[int(fixed_node[0]), int(fixed_node[1])] + 1
                        parent[child_node] = fixed_node
                        
-                else: continue
-        
-
+                       C2C[int(child_node_fixed[0]), int(child_node_fixed[1])] = cost2come
+                       costsum[child_cost_node] = cost2come + cost2go
+                       child = [costsum[child_cost_node], child_node_fixed]
+                       heapq.heappush(OL, child)
+                       
+                       
+                else:
+                    print("Node visited, checking for better path")
+                    cost2go = round(euclidean_distance(child_node_fixed, goal_node),2)
+                    cost2come = C2C[int(fixed_node[0]), int(fixed_node[1])] + 1
+                    
+                    if(costsum[child_cost_node] > (cost2come + cost2go)):
+                        parent[child_node] = fixed_node
+                        C2C[int(child_node_fixed[0]), int(child_node_fixed[1])] = cost2come
+                        costsum[child_cost_node] = cost2come + cost2go
+    return False
+#%%
 # Initialize pygame
 pygame.init()
 
@@ -347,7 +375,7 @@ def GetUserInput():
     return start_node, goal
 
 # Insert start point into Open List
-OL.put(start_node)
+#OL.put(start_node)
 
 # Grab start time before running the solver
 start_time = time.perf_counter()
@@ -395,8 +423,14 @@ while running:
     pxarray[x,y] = pygame.Color(pallet["blue"])
     """
     
+    start_node = [0.0, (15.0, 15.0, 0.0)]
+    goal_node =  (600.0,75.0)
+    parent = {}
+    costsum = {}
+    
+    
     # Start A_Star algorithm solver, returns game state of either SUCCESS (True) or FAILURE (false)
-    alg_state = A_Star(start_node, goal_node, OL, parent, V, C2C)
+    alg_state = A_Star(start_node, goal_node, OL, parent, V, C2C, costsum, step=1)
     
     if alg_state == False:
         print("Unable to find solution")
