@@ -192,23 +192,24 @@ for x,y in boundary:
         map[y,x] = (0,255,0)
 
 # Get user inputs for start/end positions and step size
-
 while True:
-    valid = True
+    valid = True 
+
     start_x = scale(int(input("Enter start x [mm]: ")))
-    start_y = h - scale(int(input("Enter start y [mm]: ")))
-    start_t = 360 - (round(((int(input("Enter start angle [deg]: ")))/30),0))*30
+    start_y = h - scale(int(input("Enter start y [mm]: "))) # Subtract from height for origin at bottom left
+    start_t = 360 - (round(((int(input("Enter start angle [deg]: ")))/30),0))*30 # Round to nearest multiple of 30 and subtract from 360 for origin at bottom left
     start_xy = (start_x,start_y)
     start = (start_x,start_y,start_t)
     
     end_x = scale(int(input("Enter goal x [mm]: ")))
-    end_y = h - scale(int(input("Enter goal y [mm]: ")))
-    end_t = 0
+    end_y = h - scale(int(input("Enter goal y [mm]: "))) # Subtract from height for origin at bottom left
+    end_t = 0 # Ignoring goal angle for this assignment, default value given
     end_xy = (end_x,end_y)
     end = (end_x,end_y,end_t)
 
     step_size = scale(int(input("Enter step size from 1 - 10 [mm]: ")))
 
+    # Create error message
     message = "Error: "
     if start_x <= 0 or start_x >= w:
         message = message + "\n start x out of map bounds"
@@ -231,8 +232,9 @@ while True:
     if step_size < scale(1) or step_size > scale(10):
         message = message + "\n step size outside of range"
         valid = False
+
     if valid:
-        break
+        break # Break loop if no errors
 
     print(message)
 
@@ -245,12 +247,12 @@ def distance(p1,p2):
 
 # Function to check if path between points crosses buffer zone
 def line_cross(p1,p2):
-    l_map = np.zeros((h, w, 1), dtype=np.uint8)
-    cv2.line(l_map,p1,p2,(255),1)
-    locations = np.where(l_map == (255))
+    l_map = np.zeros((h, w, 1), dtype=np.uint8) # Create blank map
+    cv2.line(l_map,p1,p2,(255),1) # Create white line between input points
+    locations = np.where(l_map == (255)) # Find locations of white pixels
     for i in range(0,len(locations[0])):
-        if (locations[1][i], locations[0][i]) in boundary:
-            return True
+        if (locations[1][i], locations[0][i]) in boundary: 
+            return True # If line crosses over boundary, return True
 
 # Initialize open and closed lists
 open_list = []
@@ -264,43 +266,53 @@ heapq.heappush(open_list, (start_ctg, 0, start_ctg, start, start))
 
 # A star algorithm 
 def move(node,angle):
+
+    # Parent node information
     p_ctc = node[1]
     p_x = node[4][0]
     p_y = node[4][1]
+    p_coord = node[4]
+    p_xy = (p_x, p_y)
+
+    # Child node information
     c_x = int(p_x+(step_size*np.cos(np.deg2rad(angle))))
     c_y = int(p_y+(step_size*np.sin(np.deg2rad(angle))))
     c_t = angle
-    p_coord = node[4]
     c_coord = (c_x, c_y, c_t)
     c_xy = (c_x, c_y)
-    p_xy = (p_x, p_y)
+
+    # Calculate child node cost to come, cost to go, and total cost
     c_ctc = p_ctc+step_size
     c_ctg = distance(c_coord,end)
     c_tot = c_ctc+c_ctg
+
+    # Ignore node if path crosses buffer zone
     if line_cross(p_xy,c_xy):
         return
+    
+    # Replace node in open list with child node if lower total cost node found within 0.5 mm
     for item in open_list:
-        item_xy = (item[4][0],item[4][1])
-        item_t = item[4][2]
+        item_xy = (item[4][0],item[4][1])        
         if distance(c_xy,item_xy) <= scale(0.5):
             if item[0] > c_tot:
                 open_list.remove(item)
             else:
                 return
+            
+    # Push child node to open list
     heapq.heappush(open_list, (c_tot, c_ctc, c_ctg, p_coord, c_coord))
     return
 
-# Execute A star algorithm
+# Initial distance from goal
 dist_to_goal = start_ctg
-exy = (end[0],end[1])
 
+# Execute A star algorithm
 while True:
-    
-    parent_node = heapq.heappop(open_list)
-    boundary.add(parent_node[4])
-    heapq.heappush(closed_list, parent_node)
+    parent_node = heapq.heappop(open_list) # Pop lowest cost node from open list
     pxy = (parent_node[4][0],parent_node[4][1])
-    dist_to_goal = distance(pxy,exy)
+    boundary.add(parent_node[4]) # Add node location to boundary set
+    heapq.heappush(closed_list, parent_node)
+    dist_to_goal = distance(pxy,end_xy)
     
 
     # print(dist_to_goal)
