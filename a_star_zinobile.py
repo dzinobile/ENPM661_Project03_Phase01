@@ -6,7 +6,7 @@ import heapq
 
 # Scaling function to convert mm to pixels
 def scale(input):
-    return input*2
+    return input*4
 
 # Create blank map
 h = scale(50) 
@@ -18,9 +18,9 @@ while True:
     clearance = scale(int(input("Enter clearance between 1 and 7 [mm]: ")))
     radius = scale(int(input("Enter robot radius between 1 and 7 [mm]: ")))
     buffer = clearance+radius
-    if clearance < 1 or clearance > 7:
+    if clearance < scale(1) or clearance > scale(7):
         print("Error: clearance must be between 1 and 7")
-    elif radius < 1 or radius > 7:
+    elif radius < scale(1) or radius > scale(7):
         print("Error: radius must be between 1 and 7")
     else:
         break
