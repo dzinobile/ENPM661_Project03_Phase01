@@ -3,6 +3,7 @@ import numpy as np
 import cv2
 import heapq
 
+
 # Scaling function to convert mm to pixels
 def scale(input):
     return input*2
@@ -47,7 +48,7 @@ def add_boundary(inpt_x,inpt_y):
         for y in range(inpt_y-buffer, inpt_y+(buffer+1)):
             if (((x-inpt_x)**2)+((y-inpt_y)**2) <= (buffer)**2):
                 boundary.add((x,y))
-                map[y,x] = (0,255,0)
+                
 
 # Define obstacles
 for y in range(scale(17),scale(35)):
@@ -185,3 +186,166 @@ for y in range(scale(17),scale(35)):
                 add_boundary(x,y)
                 map[y,x] = (255,0,0)
 
+# Color in buffer zone
+for x,y in boundary:
+    if map[y,x][0] == 0:
+        map[y,x] = (0,255,0)
+
+# Get user inputs for start/end positions and step size
+
+while True:
+    valid = True
+    start_x = scale(int(input("Enter start x [mm]: ")))
+    start_y = h - scale(int(input("Enter start y [mm]: ")))
+    start_t = 360 - (round(((int(input("Enter start angle [deg]: ")))/30),0))*30
+    start_xy = (start_x,start_y)
+    start = (start_x,start_y,start_t)
+    
+    end_x = scale(int(input("Enter goal x [mm]: ")))
+    end_y = h - scale(int(input("Enter goal y [mm]: ")))
+    end_t = 0
+    end_xy = (end_x,end_y)
+    end = (end_x,end_y,end_t)
+
+    step_size = scale(int(input("Enter step size from 1 - 10 [mm]: ")))
+
+    message = "Error: "
+    if start_x <= 0 or start_x >= w:
+        message = message + "\n start x out of map bounds"
+        valid = False
+    if start_y <= 0 or start_y >= h:
+        message = message + "\n start y out of map bounds"
+        valid = False
+    if end_x <= 0 or end_x >= w:
+        message = message + "\n goal x out of map bounds"
+        valid = False
+    if end_y <= 0 or end_y >= h:
+        message = message + "\n goal y out of map bounds"
+        valid = False
+    if start_xy in boundary:
+        message = message + "\n start position inside buffer zone"
+        valid = False
+    if end_xy in boundary:
+        message = message + "\n end position inside buffer zone"
+        valid = False
+    if step_size < scale(1) or step_size > scale(10):
+        message = message + "\n step size outside of range"
+        valid = False
+    if valid:
+        break
+
+    print(message)
+
+
+# Function to find euclidian distance between points
+def distance(p1,p2):
+    dist = np.sqrt(((p1[0]-p2[0])**2)+((p1[1]-p2[1])**2))
+    dist = int(dist)
+    return dist
+
+# Function to check if path between points crosses buffer zone
+def line_cross(p1,p2):
+    l_map = np.zeros((h, w, 1), dtype=np.uint8)
+    cv2.line(l_map,p1,p2,(255),1)
+    locations = np.where(l_map == (255))
+    for i in range(0,len(locations[0])):
+        if (locations[1][i], locations[0][i]) in boundary:
+            return True
+
+# Initialize open and closed lists
+open_list = []
+closed_list = []
+heapq.heapify(closed_list)
+heapq.heapify(open_list)
+
+# Push start node to open list
+start_ctg = distance(start,end)
+heapq.heappush(open_list, (start_ctg, 0, start_ctg, start, start))
+
+# A star algorithm 
+def move(node,angle):
+    p_ctc = node[1]
+    p_x = node[4][0]
+    p_y = node[4][1]
+    c_x = int(p_x+(step_size*np.cos(np.deg2rad(angle))))
+    c_y = int(p_y+(step_size*np.sin(np.deg2rad(angle))))
+    c_t = angle
+    p_coord = node[4]
+    c_coord = (c_x, c_y, c_t)
+    c_xy = (c_x, c_y)
+    p_xy = (p_x, p_y)
+    c_ctc = p_ctc+step_size
+    c_ctg = distance(c_coord,end)
+    c_tot = c_ctc+c_ctg
+    if line_cross(p_xy,c_xy):
+        return
+    for item in open_list:
+        item_xy = (item[4][0],item[4][1])
+        item_t = item[4][2]
+        if distance(c_xy,item_xy) <= scale(0.5):
+            if item[0] > c_tot:
+                open_list.remove(item)
+            else:
+                return
+    heapq.heappush(open_list, (c_tot, c_ctc, c_ctg, p_coord, c_coord))
+    return
+
+# Execute A star algorithm
+dist_to_goal = start_ctg
+exy = (end[0],end[1])
+
+while True:
+    
+    parent_node = heapq.heappop(open_list)
+    boundary.add(parent_node[4])
+    heapq.heappush(closed_list, parent_node)
+    pxy = (parent_node[4][0],parent_node[4][1])
+    dist_to_goal = distance(pxy,exy)
+    
+
+    # print(dist_to_goal)
+
+    for item in [-2, -1, 0, 1, 2]:
+        ang = parent_node[4][2] + (30*item)
+        ang = ang%360
+        move(parent_node,ang)
+    
+    if dist_to_goal < scale(1.5):
+        break
+
+# Find final path
+final_path = []
+path_node = closed_list[-1][4]
+while path_node != start:
+    for item in closed_list:
+        if item[4] == path_node: 
+            final_path.append(item)
+            path_node = item[3]
+
+final_path.sort() # reorder path to go from start to finish
+
+# Animate search
+map_display = map.copy()
+
+for item in closed_list:
+    par_xy = (item[3][0],item[3][1])
+    chi_xy = (item[4][0],item[4][1])
+    cv2.line(map_display,par_xy,chi_xy,(255,255,255),1)
+    cv2.circle(map_display,start_xy,int(scale(1.5)),(0,0,255),1)
+    cv2.circle(map_display,end_xy,int(scale(1.5)),(0,0,255),-1)
+    frame = map_display.copy()
+    cv2.imshow('animation',frame)
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+for item in final_path:
+    par_xy = (item[3][0],item[3][1])
+    chi_xy = (item[4][0],item[4][1])
+    cv2.line(map_display,par_xy,chi_xy,(0,0,255),1)
+    frame = map_display.copy()
+    cv2.imshow('animation',frame)
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+cv2.waitKey(0)
+cv2.destroyAllWindows()
