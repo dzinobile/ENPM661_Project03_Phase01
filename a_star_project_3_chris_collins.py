@@ -650,12 +650,17 @@ def main(generate_random=True, start_in=(5, 48, 30), goal_in=(175, 2, 30), save_
 
 
     # Run A* Algorithm
-    (solution_path, cost_to_come, parent, cost_matrix, explored_path
+    (solution_path, cost_to_come, parent, cost_matrix, explored_path, V
     ) = a_star(start_state, goal_state, map_data, cost_matrix, obstacles, r=r)
 
     # Plot Heat Map of Cost Matrix
     plot_cost_matrix(cost_matrix, start_state, goal_state, title=f"Cost Matrix Heatmap {algo}" )
 
+    # Plot "Heat Map" of V Matrix
+    V_2d = np.sum(V, axis=2)
+    plot_cost_matrix(V_2d, start_state, goal_state, title=f"V Matrix Heatmap {algo}" )
+
+    
     if solution_path:
         # Create Videos of Solution Path and Explored Path
         solution_path_video(map_data , solution_path, save_folder_path, algo=algo)
@@ -666,7 +671,7 @@ def main(generate_random=True, start_in=(5, 48, 30), goal_in=(175, 2, 30), save_
     end = time.time()
     print("Time to Find Path, Plot Cost Matrix, and create videos: ", round((end-start), 2), " seconds")
 
-    return start_state, goal_state, map_data, map_with_clearance, cost_matrix, obstacles, solution_path, cost_to_come, parent, explored_path
+    return start_state, goal_state, map_data, map_with_clearance, cost_matrix, obstacles, solution_path, cost_to_come, parent, explored_path, V
 
 
 def euclidean_distance(node, goal_state):
@@ -792,7 +797,7 @@ def a_star(start_state, goal_state, map_data, cost_matrix, obstacles, r=1):
 
     print("A_star Expanded States: ", len(explored_path))
 
-    return solution_path, cost_to_come, parent, cost_matrix, explored_path
+    return solution_path, cost_to_come, parent, cost_matrix, explored_path, V
 
 
 def run_test_cases(algo='A_star'):
@@ -855,7 +860,7 @@ if __name__ == "__main__":
     save_folder_path = ["Dropbox", "UMD", "ENPM_661 - Path Planning for Robots", "Project 3"]
     algo             = "A_star"
     (start_state, goal_state, map_data, map_with_clearance, cost_matrix, obstacles, 
-    solution_path, cost_to_come, parent, explored_path)  =  main(
+    solution_path, cost_to_come, parent, explored_path, V)  =  main(
         generate_random=generate_random, start_in=start_in, goal_in=goal_in, save_folder_path=save_folder_path, algo=algo, r=r)
     
 
