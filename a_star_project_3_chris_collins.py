@@ -450,8 +450,8 @@ def plot_cost_matrix(cost_matrix, start_state, goal_state,  title="Cost Matrix H
     plt.figure(figsize=(8, 6))
     # Plot the cost matrix as a heatmap
     plt.imshow(cost_matrix, cmap='jet', origin='lower')
-    plt.plot(start_state[0], start_state[1], 'ro', label='Start State')
-    plt.plot(goal_state[0], goal_state[1], 'go', label='Goal State')
+    plt.plot(start_state[0]*2, start_state[1]*2, 'ro', label='Start State')
+    plt.plot(goal_state[0]*2, goal_state[1]*2, 'go', label='Goal State')
     plt.colorbar(label='Cost Value') # Add colorbar to show range of cost values
     plt.title(title)
     plt.xlabel("X (columns)")
