@@ -311,33 +311,34 @@ def move(node,angle):
         return
     # print(c_y,c_x)
     #print(np.shape(v))
-    m_c_x = int(round(((c_x/scale_factor)*2),0))
-    m_c_y = int(round(((c_y/scale_factor)*2),0))
-    m_c_t = int(c_t/30)
-    #print(open_list)
-    if v[m_c_y][m_c_x][m_c_t] == (0,0,0,(0,0,0),(0,0,0)):
-        print("unexplored node")
-        v[m_c_y][m_c_x][m_c_t] = child_node
-        heapq.heappush(open_list, child_node)
-    else:
-        print("explored node")
-        if v[m_c_y][m_c_x][m_c_t][0] > c_tot:
-            print("replace node")
-            open_list.remove(v[m_c_y][m_c_x][m_c_t])
-            v[m_c_y][m_c_x][m_c_t] = child_node
-            heapq.heappush(open_list, child_node)
-        else:
-            return
+    # m_c_x = int(round(((c_x/scale_factor)*2),0))
+    # m_c_y = int(round(((c_y/scale_factor)*2),0))
+    # m_c_t = int(c_t/30)
+    # #print(open_list)
+    # if v[m_c_y][m_c_x][m_c_t] == (0,0,0,(0,0,0),(0,0,0)):
+    #     print("unexplored node")
+    #     v[m_c_y][m_c_x][m_c_t] = child_node
+    #     heapq.heappush(open_list, child_node)
+    # else:
+    #     print("explored node")
+    #     if v[m_c_y][m_c_x][m_c_t][0] > c_tot:
+    #         print("replace node")
+    #         open_list.remove(v[m_c_y][m_c_x][m_c_t])
+    #         v[m_c_y][m_c_x][m_c_t] = child_node
+    #         heapq.heappush(open_list, child_node)
+    #     else:
+    #         return
     # Replace node in open list with child node if lower total cost node found within 0.5 mm
-    # for item in open_list:
-    #     item_xy = (item[4][0],item[4][1])        
-    #     if distance(c_xy,item_xy) <= scale(0.5):
-    #         if item[0] > c_tot:
-    #             open_list.remove(item)
-    #         else:
-    #             return
+    for item in open_list:
+        item_xy = (item[4][0],item[4][1])        
+        if distance(c_xy,item_xy) <= scale(0.5):
+            if item[0] > c_tot:
+                open_list.remove(item)
+            else:
+                return
             
     # Push child node to open list
+    heapq.heappush(open_list, child_node)
     
     #print(open_list)
     
@@ -357,7 +358,7 @@ while True:
     # print(dist_to_goal)
 
     for item in [-2, -1, 0, 1, 2]:
-        print(item)
+        #print(item)
         ang = parent_node[4][2] + (30*item)
         ang = ang%360
         move(parent_node,ang)
@@ -378,15 +379,18 @@ final_path.sort() # reorder path to go from start to finish
 
 # Animate search
 map_display = map.copy()
+fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+out = cv2.VideoWriter('output.mp4', fourcc, 20.0, (w,h))
 
 for item in closed_list:
     par_xy = (item[3][0],item[3][1])
     chi_xy = (item[4][0],item[4][1])
     cv2.line(map_display,par_xy,chi_xy,(255,255,255),1)
-    cv2.circle(map_display,start_xy,int(scale(1.5)),(0,0,255),1)
+    cv2.circle(map_display,start_xy,int(scale(1.5)),(0,0,255),-1)
     cv2.circle(map_display,end_xy,int(scale(1.5)),(0,0,255),-1)
     frame = map_display.copy()
     cv2.imshow('animation',frame)
+    out.write(frame)
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
@@ -396,8 +400,13 @@ for item in final_path:
     cv2.line(map_display,par_xy,chi_xy,(0,0,255),1)
     frame = map_display.copy()
     cv2.imshow('animation',frame)
+    out.write(frame)
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
+for i in range(0,20):
+    out.write(frame)
+
+out.release()
 cv2.waitKey(0)
 cv2.destroyAllWindows()

@@ -5,8 +5,10 @@ import heapq
 
 
 # Scaling function to convert mm to pixels
+scale_factor = 4
+
 def scale(input):
-    return input*4
+    return input*scale_factor
 
 # Create blank map
 h = scale(50) 
@@ -39,6 +41,11 @@ for i in range(0,len(locations[0])):
 del map_limits
 del locations
 
+v1 = [(0,0,0,(0,0,0),(0,0,0))]*12
+v2 = [v1]*900
+v = [v2]*250
+
+
 # Function to add obstacles and buffer to boundary
 def add_boundary(inpt_x,inpt_y):
     # add given point to the boundary sets
@@ -52,9 +59,9 @@ def add_boundary(inpt_x,inpt_y):
                 
 
 # Define obstacles
-for y in range(scale(17),scale(35)):
+for y in range(scale(17),scale(35),scale_factor):
     # define obstacle E
-    for x in range(scale(20),scale(40)):
+    for x in range(scale(20),scale(40),scale_factor):
         if scale(16) < y <= scale(20):
             if scale(21) < x <= scale(39):
                 # top horizontal of E
@@ -85,7 +92,7 @@ for y in range(scale(17),scale(35)):
                 add_boundary(x,y)
                 map[y,x] = (255,0,0)
     # define obstacle N
-    for x in range(scale(40),scale(60)):
+    for x in range(scale(40),scale(60),scale_factor):
         if scale(41) < x <= scale(45):
             # first vertical of N
             add_boundary(x,y)
@@ -103,7 +110,7 @@ for y in range(scale(17),scale(35)):
                 map[y,x] = (255,0,0)
     
     # define obstacle P
-    for x in range(scale(60), scale(80)):
+    for x in range(scale(60), scale(80),scale_factor):
 
         # main vertical of P
         if scale(61) < x <= scale(67):
@@ -117,7 +124,7 @@ for y in range(scale(17),scale(35)):
                 map[y,x] = (255,0,0)
     
     # define obstacle M
-    for x in range(scale(80),scale(100)):
+    for x in range(scale(80),scale(100),scale_factor):
 
         # first vertical of M
         if scale(81) < x <= scale(85):
@@ -142,7 +149,7 @@ for y in range(scale(17),scale(35)):
             map[y,x] = (255,0,0)
     
     # define obstacle 6
-    for x in range(scale(100),scale(120)):
+    for x in range(scale(100),scale(120),scale_factor):
 
         # draw main circle per equation
         if ((x-scale(110))**2)+(y-scale(28.5))**2 <= (scale(5.5))**2:
@@ -169,7 +176,7 @@ for y in range(scale(17),scale(35)):
                 map[y,x+scale(20)] = (255,0,0)
 
     # define obstacle 1
-    for x in range(scale(140),scale(160)):
+    for x in range(scale(140),scale(160),scale_factor):
         if scale(16) < y <= scale(20.62):
             if scale(144) < x <= scale(152):
                 # top horizontal of 1
@@ -273,7 +280,7 @@ heapq.heappush(open_list, (start_ctg, 0, start_ctg, start, start))
 
 # A star algorithm 
 def move(node,angle):
-
+    
     # Parent node information
     p_ctc = node[1]
     p_x = node[4][0]
@@ -293,10 +300,34 @@ def move(node,angle):
     c_ctg = distance(c_coord,end)
     c_tot = c_ctc+c_ctg
 
+    child_node = (c_tot, c_ctc, c_ctg, p_coord, c_coord)
+
     # Ignore node if path crosses buffer zone
+    if c_x < 1 or c_x > w:
+        return
+    if c_y < 1 or c_y > h:
+        return
     if line_cross(p_xy,c_xy):
         return
-    
+    # print(c_y,c_x)
+    #print(np.shape(v))
+    # m_c_x = int(round(((c_x/scale_factor)*2),0))
+    # m_c_y = int(round(((c_y/scale_factor)*2),0))
+    # m_c_t = int(c_t/30)
+    # #print(open_list)
+    # if v[m_c_y][m_c_x][m_c_t] == (0,0,0,(0,0,0),(0,0,0)):
+    #     print("unexplored node")
+    #     v[m_c_y][m_c_x][m_c_t] = child_node
+    #     heapq.heappush(open_list, child_node)
+    # else:
+    #     print("explored node")
+    #     if v[m_c_y][m_c_x][m_c_t][0] > c_tot:
+    #         print("replace node")
+    #         open_list.remove(v[m_c_y][m_c_x][m_c_t])
+    #         v[m_c_y][m_c_x][m_c_t] = child_node
+    #         heapq.heappush(open_list, child_node)
+    #     else:
+    #         return
     # Replace node in open list with child node if lower total cost node found within 0.5 mm
     for item in open_list:
         item_xy = (item[4][0],item[4][1])        
@@ -307,8 +338,10 @@ def move(node,angle):
                 return
             
     # Push child node to open list
-    heapq.heappush(open_list, (c_tot, c_ctc, c_ctg, p_coord, c_coord))
-    return
+    heapq.heappush(open_list, child_node)
+    
+    #print(open_list)
+    
 
 # Initial distance from goal
 dist_to_goal = start_ctg
@@ -325,6 +358,7 @@ while True:
     # print(dist_to_goal)
 
     for item in [-2, -1, 0, 1, 2]:
+        #print(item)
         ang = parent_node[4][2] + (30*item)
         ang = ang%360
         move(parent_node,ang)
@@ -345,13 +379,14 @@ final_path.sort() # reorder path to go from start to finish
 
 # Animate search
 map_display = map.copy()
+final_map = map.cop()
 
 for item in closed_list:
     par_xy = (item[3][0],item[3][1])
     chi_xy = (item[4][0],item[4][1])
     cv2.line(map_display,par_xy,chi_xy,(255,255,255),1)
     cv2.circle(map_display,start_xy,int(scale(1.5)),(0,0,255),1)
-    cv2.circle(map_display,end_xy,int(scale(1.5)),(0,0,255),-1)
+    cv2.circle(map_display,end_xy,int(scale(1.5)),(0,0,255),1)
     frame = map_display.copy()
     cv2.imshow('animation',frame)
     if cv2.waitKey(1) & 0xFF == ord('q'):
