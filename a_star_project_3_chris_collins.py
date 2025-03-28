@@ -728,9 +728,10 @@ def a_star(start_state, goal_state, map_data, cost_matrix, obstacles, r=1):
     f_start       = euclidean_distance(start_state, goal_state) # Heuristic function for start state 
     thresh        = 0.5
     V             = np.zeros(                                   # Visited Nodes
-                        (int(map_data.shape[0]/thresh),
-                        int(map_data.shape[1]/thresh),
-                        12)) 
+                        (int(map_data.shape[0] / thresh),
+                         int(map_data.shape[1] / thresh),
+                         12)
+                    ) 
     
     
     start_state, x_v_idx, y_v_idx, theta_v_idx    = round_and_get_v_index(start_state)
@@ -761,8 +762,7 @@ def a_star(start_state, goal_state, map_data, cost_matrix, obstacles, r=1):
         # else:                                     # Only add node to explored path if it is visited and expanded
         #     explored_path.append(curr_node)       # If we've found a lower cost for the node, then we have already explored it
 
-        possible_moves = [
-                            move_theta_0(      curr_node, r), 
+        possible_moves = [  move_theta_0(      curr_node, r), 
                             move_diag_up_30(   curr_node, r), 
                             move_diag_up60(    curr_node, r),
                             move_diag_down_30( curr_node, r),
@@ -816,10 +816,10 @@ def run_test_cases(algo='A_star'):
     test_points =[(1, 49), (1, 1), (179, 1), (179, 49), (5, 52), (181, 2)]
     for test_point in test_points:
         print("Test Point: ", test_point)
-        start_in = (test_point[0], test_point[1])
-        goal_in  = (75, 4)
+        start_in        = (test_point[0], test_point[1])
+        goal_in         = (75, 4)
         generate_random = False
-        start_in = test_point
+        start_in        = test_point
 
         (start_state, goal_state, map_data, map_with_clearance, cost_matrix, obstacles, 
         solution_path, cost_to_come, parent, explored_path)  =  main(
@@ -865,7 +865,7 @@ save_folder_path = ["Dropbox", "UMD", "ENPM_661 - Path Planning for Robots", "Pr
 generate_random = False
 start_in = (5, 48, 30)
 goal_in  = (300, 220, 30)
-r = 5
+r = 1
 
 if __name__ == "__main__":
     save_folder_path = ["Dropbox", "UMD", "ENPM_661 - Path Planning for Robots", "Project 3"]
