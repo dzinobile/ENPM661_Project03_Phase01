@@ -389,41 +389,6 @@ while running:
         if event.type == pygame.QUIT:
             running = False
     
-    """
-    CurrentNode = OL.get()
-    x,y=CurrentNode[3]
-    
-    # If popped node is goal node, backtrace the solution path
-    if(CurrentNode[3] == goal):
-        GeneratePath(CurrentNode)
-        
-        # Draw path on board with red pixels
-        for i in range(len(solution)):
-            x,y = solution[i][3]
-            pxarray[x,y] = pygame.Color(pallet["red"])
-        print("SUCCESS! Robbie made it home!")
-        
-        #####################################
-        # Calculate runtime
-        end_time = time.perf_counter()
-        run_time = end_time - start_time
-        print('Time needed for puzzle: ', (run_time), 'seconds')
-        
-        # Update the screen
-        pygame.display.update()
-        
-        break
-    
-    # Perform action set on node if not goal node
-    #ProcessNode(CurrentNode)
-    
-    # Move the processed node to the Closed List and update the map
-    key = copy.deepcopy(CurrentNode[3])
-    x,y = CurrentNode[3]
-    CL[key] = CurrentNode
-    pxarray[x,y] = pygame.Color(pallet["blue"])
-    """
-    
     start_node = [0.0, (15.0, 20.0, 0.0)]
     goal_node =  (20.0,235.0)
     parent = {}
