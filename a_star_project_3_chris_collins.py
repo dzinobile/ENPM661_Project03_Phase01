@@ -291,18 +291,15 @@ def add_buffer(map_img, buffer_size=5):
     map_with_clearance = cv2.dilate(255 - map_img_copy, kernel)
 
     # Invert back (to original representation: obstacles=0, free=255)
-    map_img_copy = 255 - map_with_clearance
-
+    map_img_copy      = 255 - map_with_clearance
     obstacles          = np.where(map_img_copy == 0)
     obstacles          = set(zip(obstacles[1], obstacles[0]))
 
-    new_obstacles = (map_img == 255) & (map_with_clearance == 0)
+    # new_obstacles = (map_img == 255) & (map_with_clearance == 0)
 
-    map_img_copy_color_buffer = cv2.cvtColor(map_with_clearance, cv2.COLOR_GRAY2RGB)
-    map_img_copy_color_buffer[new_obstacles] = [0, 255, 255] # Color new obstacles cyan before grayscale
-    map_img_out = cv2.cvtColor(map_img_copy_color_buffer, cv2.COLOR_GRAY2RGB)
 
-    return map_img_copy_color_buffer, obstacles
+
+    return map_img_copy, obstacles
 
 
 def create_cost_matrix(map_img):
@@ -783,13 +780,14 @@ def a_star(start_state, goal_state, map_data_wit_clearance, cost_matrix, obstacl
     V             = np.zeros(                                   # Visited Nodes
                         (int(map_data_wit_clearance.shape[0] / thresh),
                          int(map_data_wit_clearance.shape[1] / thresh),
-                         12)
+                            12)
                     ) 
+
 
     start_state, x_v_idx, y_v_idx, theta_v_idx    = round_and_get_v_index(start_state)
     print("Starting A_Star Search for:")
     print("Start State: ", start_state)
-    print("Goal State: ",  goal_state)
+    print("Goal State: ", goal_state)
 
     start_v_idx                      = (x_v_idx, y_v_idx, theta_v_idx)
     cost_to_come[(y_v_idx, x_v_idx, theta_v_idx)] = 0.0       # cost_to_come is our Closed List
