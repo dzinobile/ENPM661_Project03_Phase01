@@ -227,8 +227,20 @@ def in_6(x, y, start_x, start_y):
 
     return curly_top, bottom_circle, tip_circle
 
+def in_wall(x, y, w, h, clearance=5):
+    # Check if (x, y) is inside the wall
+    # Coords wrt bottom-left origin\
 
-def draw(map_img, start_x, start_y, letter='E'):
+    return(
+        in_rectangle(x, y, 0, clearance - 1, 0, h - 1) or
+        in_rectangle(x, y, w - clearance, w - 1, 0, h - 1) or
+        in_rectangle(x, y, 0, w - 1, 0, clearance - 1) or
+        in_rectangle(x, y, 0, w - 1, h - clearance, h - 1)
+    )
+    
+
+
+def draw(map_img, start_x, start_y, letter='E', clearance=5):
     h, w = map_img.shape
     for py in range(h):
         for px in range(w):
@@ -259,6 +271,10 @@ def draw(map_img, start_x, start_y, letter='E'):
             elif letter == '1': # Draw 1
                 if in_1(x_bl, y_bl, start_x, start_y):
                     map_img[py, px] = 0
+
+            elif letter == 'Wall': # Draw Wall
+                if in_wall(x_bl, y_bl, w, h, clearance=clearance):
+                    map_img[py, px] = 0
             
     return map_img
 
@@ -276,7 +292,17 @@ def add_buffer(map_img, buffer_size=5):
 
     # Invert back (to original representation: obstacles=0, free=255)
     map_img_copy = 255 - map_with_clearance
-    return map_img_copy
+
+    obstacles          = np.where(map_img_copy == 0)
+    obstacles          = set(zip(obstacles[1], obstacles[0]))
+
+    new_obstacles = (map_img == 255) & (map_with_clearance == 0)
+
+    map_img_copy_color_buffer = cv2.cvtColor(map_with_clearance, cv2.COLOR_GRAY2RGB)
+    map_img_copy_color_buffer[new_obstacles] = [0, 255, 255] # Color new obstacles cyan before grayscale
+    map_img_out = cv2.cvtColor(map_img_copy_color_buffer, cv2.COLOR_GRAY2RGB)
+
+    return map_img_copy_color_buffer, obstacles
 
 
 def create_cost_matrix(map_img):
@@ -330,7 +356,7 @@ def round_and_get_v_index(node):
 
 def check_if_visited(V, curr_node_v, stepsize):
     h, w = V.shape[:2]
-    x, y = curr_node_v 
+    y, x, theta = curr_node_v 
 
     step_size_i = max(int(stepsize // 2), 1)
 
@@ -495,7 +521,8 @@ def solution_path_video(map_data, solution_path, save_folder_path, algo="Dijkstr
 
     for i in range(len(solution_path)-1):
         # Draw solution path on map_data
-        solution_path_xy, solution_path_xy1 = solution_path[i][:2], solution_path[i+1][:2]
+        solution_path_xy  = (int(solution_path[i][0]), int(solution_path[i][1]) )
+        solution_path_xy1  = (int(solution_path[i+1][0]), int(solution_path[i+1][1]) )
 
         cv2.line(color_map, solution_path_xy, solution_path_xy1, (0, 0, 255), 1) # Draw line between current and next node
         frame_inverted = color_map.copy()       # Copy to ensure we don't draw on same frame from previous iteration
@@ -504,12 +531,22 @@ def solution_path_video(map_data, solution_path, save_folder_path, algo="Dijkstr
     writer.release()
 
 
-def explored_path_video(map_data, explored_path, save_folder_path, algo="Dijkstra"):
-    fps       = 300 # Increased FPS to shorten Video
+def explored_path_video(map_data, explored_path, save_folder_path, algo="A_Star", solution_path=None):
+    n            = len(explored_path)
+    video_length = 10 # Seconds
+    fps          = 100 # Increased FPS to shorten Video
+    num_frames   = video_length * fps # FPS
+    if n < num_frames:
+        skip = 1
+    else:
+        skip         = n // num_frames # Skip frames to ensure we get all explored nodes in video
+    
     h, w      = map_data.shape
     color_map = map_data.copy()
     color_map = cv2.cvtColor(map_data, cv2.COLOR_GRAY2RGB)
     color_map_inverted = cv2.flip(color_map, 0)
+    start_state, goal_state = explored_path[0], explored_path[-1]
+
 
     my_path      = os.path.expanduser("~")
     for folder in save_folder_path:
@@ -527,14 +564,30 @@ def explored_path_video(map_data, explored_path, save_folder_path, algo="Dijkstr
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     writer = cv2.VideoWriter(video_path, fourcc, fps, (w, h))
 
-    for node in explored_path:
-        node_xy = node[:2]
-        node_xy = (int(node_xy[0]), int(node_xy[1]))
+    # Draw start and goal states on map_data
+    cv2.circle(color_map_inverted, (int(start_state[0]), int((h-1) - start_state[1])), 3, (255, 0, 0), 5)
+    cv2.circle(color_map_inverted, (int(goal_state[0]), int((h-1) - goal_state[1])), 3, (255, 0, 0), 5)
+    writer.write(color_map_inverted)
 
-        cv2.circle(color_map_inverted, node_xy,  1, (0, 255, 0), -1)
+    for i, node in enumerate(explored_path):
+            # Only draw/write every skip expansions
+            if i % skip == 0:
 
+                x, y = int(node[0]), int(node[1])
+                y_cv = (h - 1) - y  # Flip y coordinate to match OpenCV's (row, col) convention
+                cv2.circle(color_map_inverted, (x, y_cv), 1, (0, 255, 0), -1)
+                writer.write(color_map_inverted)
+
+    for i in range(len(solution_path)-1):
+        # Draw solution path on map_data
+        solution_path_xy  = (int(solution_path[i][0]), (h-1) - int(solution_path[i][1]) )
+        solution_path_xy1  = (int(solution_path[i+1][0]), (h-1) - int(solution_path[i+1][1]) )
+
+        cv2.line(color_map_inverted, solution_path_xy, solution_path_xy1, (0, 0, 255), 3)
         writer.write(color_map_inverted)
+
     writer.release()
+
 
 
 def generate_random_state(map_img, obstacles):
@@ -555,12 +608,12 @@ def generate_random_state(map_img, obstacles):
 
 
 def get_map_cost_matrix():
-    # Create Map with Obstacles, Map with Obstacles + 2mm clearence and Cost Matrix
+    # Create Map with Obstacles, Map with Obstacles + 2mm clearance and Cost Matrix
     start                 = time.time()
     map_width, map_height = 180, 50 # mm
     start_x, start_y      = 12,  12 # mm
     resize_x, resize_y    = 600, 250 # mm
-    robot_clearence       = 5       # mm
+    robot_clearance       = 5       # mm
 
     map_img   = np.ones((map_height, map_width), dtype=np.uint8) * 255
 
@@ -585,10 +638,10 @@ def get_map_cost_matrix():
     start_x   = start_x + 25
     map_img = draw(map_img, start_x, start_y, letter='1')
 
+    map_img = draw(map_img, 0, 0, letter='Wall', clearance=1)
+
     upscaled_map       = cv2.resize(map_img, (resize_x, resize_y), interpolation=cv2.INTER_NEAREST)
-    map_with_clearance = add_buffer(upscaled_map, buffer_size=robot_clearence)
-    obstacles          = np.where(map_with_clearance == 0)
-    obstacles          = set(zip(obstacles[1], obstacles[0]))
+    map_with_clearance, obstacles = add_buffer(upscaled_map, buffer_size=robot_clearance)
     
     cost_matrix        = create_cost_matrix(map_with_clearance)
 
@@ -623,33 +676,33 @@ def main(generate_random=True, start_in=(5, 48, 30), goal_in=(175, 2, 30), save_
     found_valid = False
     start       = time.time()  
     
-    # Step 1: Create Map with Obstacles, Map with Obstacles + 2mm clearence and Cost Matrix
+    # Step 1: Create Map with Obstacles, Map with Obstacles + 2mm clearance and Cost Matrix
     (map_data, map_with_clearance, cost_matrix, obstacles 
     )= get_map_cost_matrix() 
-    map_data_wit_clearence   = map_with_clearance.copy()   # Copy map_data with obstacles and clearance
+    map_data_wit_clearance   = map_with_clearance.copy()   # Copy map_data with obstacles and clearance
     
     end = time.time()
     
     # Step 2: Get Start/ Goal State, either from user or generate random valid start/ goal state
     if generate_random: # Generate Random Start/ Goal State
         while not found_valid:
-            start_state = generate_random_state(map_data_wit_clearence, obstacles)
-            goal_state  = generate_random_state(map_data_wit_clearence, obstacles)
-            if is_valid_move(start_state, map_data_wit_clearence) and is_valid_move(goal_state, map_data_wit_clearence):
+            start_state = generate_random_state(map_data_wit_clearance, obstacles)
+            goal_state  = generate_random_state(map_data_wit_clearance, obstacles)
+            if is_valid_move(start_state, map_data_wit_clearance) and is_valid_move(goal_state, map_data_wit_clearance):
                 found_valid = True
                 print("Start State: ", start_state)
                 print("Goal State: ", goal_state)
                 break
 
-            if not is_valid_move(start_state, map_data_wit_clearence):
-                start_state = generate_random_state(map_data_wit_clearence, obstacles)
+            if not is_valid_move(start_state, map_data_wit_clearance):
+                start_state = generate_random_state(map_data_wit_clearance, obstacles)
                 
-            if not is_valid_move(goal_state, map_data_wit_clearence):
-                goal_state  = generate_random_state(map_data_wit_clearence, obstacles)
+            if not is_valid_move(goal_state, map_data_wit_clearance):
+                goal_state  = generate_random_state(map_data_wit_clearance, obstacles)
 
     
     else: # Use User Provided Start/ Goal State
-        start_state, goal_state = check_validity_with_user(map_data_wit_clearence, start_in, goal_in)# Use User Provided Start/ Goal State
+        start_state, goal_state = check_validity_with_user(map_data_wit_clearance, start_in, goal_in)# Use User Provided Start/ Goal State
 
     # Step 3: Run Search Algorithm
     start = time.time()
@@ -657,7 +710,7 @@ def main(generate_random=True, start_in=(5, 48, 30), goal_in=(175, 2, 30), save_
 
     # Run A* Algorithm
     (solution_path, cost_to_come, parent, cost_matrix, explored_path, V
-    ) = a_star(start_state, goal_state, map_data, cost_matrix, obstacles, r=r)
+    ) = a_star(start_state, goal_state, map_data_wit_clearance, cost_matrix, obstacles, r=r)
 
     # Plot Heat Map of Cost Matrix
     plot_cost_matrix(cost_matrix, start_state, goal_state, title=f"Cost Matrix Heatmap {algo}" )
@@ -669,8 +722,8 @@ def main(generate_random=True, start_in=(5, 48, 30), goal_in=(175, 2, 30), save_
   
     if solution_path:
         # Create Videos of Solution Path and Explored Path
-        solution_path_video(map_data , solution_path, save_folder_path, algo=algo)
-        explored_path_video(map_data , explored_path, save_folder_path, algo=algo)
+        solution_path_video(map_data_wit_clearance, solution_path, save_folder_path, algo=algo)
+        explored_path_video(map_data_wit_clearance, explored_path, save_folder_path, algo=algo, solution_path=solution_path)
 
     else:
         print("No solution found, aborting video generation")
@@ -692,7 +745,7 @@ def euclidean_distance(node, goal_state):
 
 
 
-def a_star(start_state, goal_state, map_data, cost_matrix, obstacles, r=1):
+def a_star(start_state, goal_state, map_data_wit_clearance, cost_matrix, obstacles, r=1):
     """
     Perform A* Search to find shortest path from start state to goal state based on provided map
     and an 8-connected grid.
@@ -728,17 +781,18 @@ def a_star(start_state, goal_state, map_data, cost_matrix, obstacles, r=1):
     f_start       = euclidean_distance(start_state, goal_state) # Heuristic function for start state 
     thresh        = 0.5
     V             = np.zeros(                                   # Visited Nodes
-                        (int(map_data.shape[0] / thresh),
-                         int(map_data.shape[1] / thresh),
+                        (int(map_data_wit_clearance.shape[0] / thresh),
+                         int(map_data_wit_clearance.shape[1] / thresh),
                          12)
                     ) 
-    
-    
+
     start_state, x_v_idx, y_v_idx, theta_v_idx    = round_and_get_v_index(start_state)
-    print(start_state)
+    print("Starting A_Star Search for:")
+    print("Start State: ", start_state)
+    print("Goal State: ",  goal_state)
 
     start_v_idx                      = (x_v_idx, y_v_idx, theta_v_idx)
-    cost_to_come[(x_v_idx, y_v_idx)] = 0.0       # cost_to_come is our Closed List
+    cost_to_come[(y_v_idx, x_v_idx, theta_v_idx)] = 0.0       # cost_to_come is our Closed List
     cost_matrix[y_v_idx, x_v_idx]    = f_start   # we'll store cost to reach node + heuristic cost to reach goal
     V[y_v_idx, x_v_idx, theta_v_idx] = 1
 
@@ -748,10 +802,11 @@ def a_star(start_state, goal_state, map_data, cost_matrix, obstacles, r=1):
         curr_f, curr_node = heapq.heappop(pq) # Pop node with lowest cost from priority queue
 
         curr_node_round, curr_x_v_idx, curr_y_v_idx, curr_theta_v_idx = round_and_get_v_index(curr_node) # Round to nearest half 
-        curr_cost_node = (curr_x_v_idx, curr_y_v_idx)
+        curr_cost_node = (curr_y_v_idx, curr_x_v_idx, curr_theta_v_idx) # Get cost node for current node
+        V[curr_y_v_idx, curr_x_v_idx, curr_theta_v_idx] = 1
         
-        if euclidean_distance(curr_node, goal_state) <= 4.5:              # If goal state reached, generate path from start to gaol and break the loop
-            solution_path = generate_path(parent, goal_state)
+        if euclidean_distance(curr_node_round, goal_state) <= 1.5:              # If goal state reached, generate path from start to gaol and break the loop
+            solution_path = generate_path(parent, curr_node_round)
             print("Found Solution to Goal:")
             print(goal_state)
             print("Cost: ", cost_to_come[curr_cost_node])
@@ -772,10 +827,10 @@ def a_star(start_state, goal_state, map_data, cost_matrix, obstacles, r=1):
 
         for next_node, next_cost in possible_moves:   # For each move, check if it is valid and not an obstacle
             next_node_round, next_x_v_idx, next_y_v_idx, next_theta_v_idx = round_and_get_v_index(next_node)
-            next_cost_node = (next_x_v_idx, next_y_v_idx)
+            next_cost_node = (next_y_v_idx, next_x_v_idx, next_theta_v_idx)
             next_v_node    = (next_y_v_idx, next_x_v_idx, next_theta_v_idx)
 
-            valid_move   = is_valid_move(next_node_round, map_data)
+            valid_move   = is_valid_move(next_node_round, map_data_wit_clearance)
             not_obstacle = (next_node_round[0], next_node_round[1]) not in obstacles
 
             if valid_move and not_obstacle:     # Check if next node is valid and not on top of an obstacle
@@ -789,17 +844,17 @@ def a_star(start_state, goal_state, map_data, cost_matrix, obstacles, r=1):
                 # and add the node back-in to the priority queue without removing the old node, if the old node is reached again
                 # we skip it with the continue statement above
 
-                visited = check_if_visited(V, next_cost_node, r)
+                visited = (V[next_y_v_idx, next_x_v_idx, next_theta_v_idx] == 1)
                 
-                if (not visited) or (new_cost < cost_to_come.get(next_cost_node, float('inf')) ):
+                if (not visited) or (new_cost < cost_to_come.get(next_v_node, float('inf')) ):
                 
-                    explored_path.append(next_cost_node)
+                    explored_path.append(next_node_round)
                     cost_to_come[next_cost_node] = new_cost
                     
-                    parent[next_node]            = curr_node
+                    parent[next_node_round]            = curr_node_round
                     # Add Heurstic cost to reach goal to cost to come to current node for prioritization
-                    f_next                   = new_cost + euclidean_distance(next_node, goal_state)
-                    heapq.heappush(pq, (f_next, next_node))
+                    f_next                   = new_cost + euclidean_distance(next_node_round, goal_state)
+                    heapq.heappush(pq, (f_next, next_node_round))
                     cost_matrix[next_y_v_idx, next_x_v_idx] = new_cost
                     V[next_y_v_idx, next_x_v_idx, next_theta_v_idx] = 1
 
@@ -829,7 +884,6 @@ def run_test_cases(algo='A_star'):
 def run_case(case=1, algo='A_star'):
     if case == 1: # Valid Inputs provided (used for video creation that was submitted)
         generate_random = False
-        scale_factor = 10
         start_in = (5, 48, 30)
         goal_in  = (175, 10, 30)
         r = 1
@@ -861,14 +915,14 @@ def run_case(case=1, algo='A_star'):
 found_valid = True
 start       = time.time()  
 algo        = "A_star"
-save_folder_path = ["Dropbox", "UMD", "ENPM_661 - Path Planning for Robots", "Project 3"]
+save_folder_path = ["Dropbox", "UMD", "ENPM_661 - Path Planning for Robots", "ENPM661_Project03_Phase01"]
 generate_random = False
-start_in = (5, 48, 30)
+start_in = (12, 48, 30)
 goal_in  = (300, 220, 30)
-r = 1
+r        = 1
 
 if __name__ == "__main__":
-    save_folder_path = ["Dropbox", "UMD", "ENPM_661 - Path Planning for Robots", "Project 3"]
+    save_folder_path = ["Dropbox", "UMD", "ENPM_661 - Path Planning for Robots", "ENPM661_Project03_Phase01"]
     algo             = "A_star"
     (start_state, goal_state, map_data, map_with_clearance, cost_matrix, obstacles, 
     solution_path, cost_to_come, parent, explored_path, V)  =  main(
@@ -876,5 +930,6 @@ if __name__ == "__main__":
     
 
 
-# %% Check some Edge cases functionality
-run_test_cases()
+# %% Check some Edge cases
+
+

@@ -25,16 +25,16 @@ import imageio
 ###########################
 
 # Screen dimensions
-rows, cols = (615,250)
+rows, cols = (600, 250)
 
 # Define Lists
-OL = []
-CL = {}
+OL        = []
+CL        = {}
 index_ctr = 0
-solution = []
-thresh = 0.5
-V = np.zeros((int(rows/thresh), int(cols/thresh), 12))
-C2C = np.zeros((int(rows/thresh), int(cols/thresh)))
+solution  = []
+thresh    = 0.5
+V         = np.zeros((int(rows/thresh), int(cols/thresh), 12))
+C2C       = np.zeros((int(rows/thresh), int(cols/thresh)))
 
 # Define colors
 pallet = {"white": (255, 255, 255), 
@@ -97,7 +97,6 @@ def get_theta_index(theta):
 
 def round_and_get_v_index(node):
    #  Round x, y coordinates to nearest half to ensure we are on the center of a pixel
-   
    x           = round(node[0] * 2, 1) / 2
    y           = round(node[1] * 2, 1) / 2
    theta       = node[2]
@@ -109,6 +108,8 @@ def round_and_get_v_index(node):
 
 
 def get_xy(node, move_theta, r):
+    # Get the new x, y coordinates based on the current node and the move theta
+    # move_theta is the angle to move in degrees
     
     theta = node[2] + move_theta
     x     = node[0] + r * np.cos(np.deg2rad(theta))
@@ -234,6 +235,7 @@ def euclidean_distance(node, goal_state):
 # Green: Buffer Zone
 # Black: Action Space
 def DrawBoard(rows, cols, pxarray, pallet, C2C, thresh):
+    w, h = 600, 250
     for x in range(0,rows):
         for y in range(0,cols):
             in_obj = InObjectSpace(x,y)
@@ -248,10 +250,10 @@ def DrawBoard(rows, cols, pxarray, pallet, C2C, thresh):
                    (InObjectSpace(x+5,y+5)) or\
                    (InObjectSpace(x-5,y-5)) or\
                    (InObjectSpace(x+5,y-5)) or\
-                   (InObjectSpace(x-5,y+5))) and ((5<x<609) and (5<y<244))):
+                   (InObjectSpace(x-5,y+5))) and ((5<x<(w-6)) and (5<y<(h-6)))):
                     pxarray[x,y] = pygame.Color(pallet["green"])
                     #C2C[x][y]=-1
-                elif(0<x<=5 or 609<=x<614 or 0<y<=5 or 244<=y<249):
+                elif(0<x<=5 or (w-6)<=x<(w-1) or 0<y<=5 or (h-6)<=y<(h-1)):
                      pxarray[x,y] = pygame.Color(pallet["green"])
                      #C2C[x][y]=-1
                 else:
@@ -272,11 +274,9 @@ def create_solution_path_video(solution_path, rows, cols, window_size, pallet, C
     
     pygame.init()
     solution_frames = []
-    # Define screen size
     window_size = (rows, cols)
     screen  = pygame.display.set_mode(window_size)
     pxarray = pygame.PixelArray(screen)
-
 
     DrawBoard(rows, cols, pxarray, pallet, C2C, thresh)
 
@@ -296,9 +296,29 @@ def create_solution_path_video(solution_path, rows, cols, window_size, pallet, C
     imageio.mimsave("Solution_Path.mp4", solution_frames, fps=fps)
 
 
-#%%                    
+                 
 def A_Star(start_node, goal_node, OL, parent, V, C2C, costsum, step, frames=[], create_video=False):
-    
+    """
+    A* Search algorithm to find the shortest path from start node to goal node.
+    start_node:     Starting node of the search
+    goal_node:      Goal node of the search
+    OL:             Open List of nodes to be explored
+    parent:         Dictionary mapping child states to parent states
+    V:              Visited nodes matrix
+    C2C:            Cost to come matrix
+    costsum:        Cost sum matrix
+    step:           Step size for the robot
+    frames:         List of frames for video creation
+    create_video:   If set to True save frames of explored path for video creation
+
+    Returns:    
+                True if a path is found, False otherwise
+                explored:   List of explored nodes
+                parent:     Dictionary mapping child states to parent states
+                frames:     List of frames for video creation
+                goal_node:  Final Node within threshold of the goal node
+                
+    """
     start_state, x_v_idx, y_v_idx, theta_v_idx = round_and_get_v_index(start_node[1])
     start_cost_state = (x_v_idx, y_v_idx, theta_v_idx)
     C2C[x_v_idx, y_v_idx] = 0.0
@@ -328,9 +348,9 @@ def A_Star(start_node, goal_node, OL, parent, V, C2C, costsum, step, frames=[], 
             print("Work In Progress, Please Excuse Our Dust")
             return True, explored, parent, frames, fixed_node
         else:
-            actions = [move_diag_up_60(fixed_node, step),
-                       move_diag_up_30(fixed_node, step),
-                       move_theta_0(fixed_node, step),
+            actions = [move_diag_up_60(  fixed_node, step),
+                       move_diag_up_30(  fixed_node, step),
+                       move_theta_0(     fixed_node, step),
                        move_diag_down_30(fixed_node, step),
                        move_diag_down_60(fixed_node, step)
                        ]
@@ -352,7 +372,7 @@ def A_Star(start_node, goal_node, OL, parent, V, C2C, costsum, step, frames=[], 
                     
                     if(C2C[child_x_v_idx, child_y_v_idx]  == np.inf):
                        cost2go = euclidean_distance(child_node_fixed, goal_node)
-                       cost2come = C2C[x_v_idx, y_v_idx] + 1
+                       cost2come = C2C[x_v_idx, y_v_idx] + step
                        parent[child_node_fixed] = fixed_node
                        
                        C2C[child_x_v_idx, child_y_v_idx] = cost2come
@@ -362,7 +382,7 @@ def A_Star(start_node, goal_node, OL, parent, V, C2C, costsum, step, frames=[], 
                        
                 else:
                     cost2go = euclidean_distance(child_node_fixed, goal_node)
-                    cost2come = C2C[x_v_idx, y_v_idx] + 1
+                    cost2come = C2C[x_v_idx, y_v_idx] + step
                     
                     if(costsum[child_cost_node] > (cost2come + cost2go)):
                         parent[child_node_fixed] = fixed_node
@@ -372,7 +392,7 @@ def A_Star(start_node, goal_node, OL, parent, V, C2C, costsum, step, frames=[], 
     return False, explored, parent, frames, goal_node
 
 #%%
-create_video = True # Creating Video slows down execution time, set to False to just show the pygame window
+create_video = False # Creating Video slows down execution time, set to False to just show the pygame window
 
 # Initialize pygame
 pygame.init()
@@ -424,7 +444,7 @@ def GetUserInput():
         
         step_size = int(input("Enter step size from 1 to 10: "))
         
-        start_node = [0, 0, 0, (start_x, 49-start_y)]
+        start_node = [0, 0, 0, (start_x, 249-start_y)]
         C2C[start_x][start_y] = 0  # Set start node cost as 0 in C2C matrix
         goal = (goal_x,goal_y)
      
@@ -482,9 +502,9 @@ while running:
     """
     
     start_node = [0.0, (15.0, 20.0, 0.0)]
-    goal_node =  (415.0, 235.0)
-    parent = {}
-    costsum = {}
+    goal_node  = (415.0, 235.0)
+    parent     = {}
+    costsum    = {}
     
     FillCostMatrix(C2C, pxarray, pallet, thresh)
     
