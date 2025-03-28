@@ -294,6 +294,7 @@ def create_cost_matrix(map_img):
 
     return upscaled_cost_matrix
 
+
 def get_theta_index(theta):
     theta = theta % 360
     look_up_dict = {
@@ -312,6 +313,7 @@ def get_theta_index(theta):
     }
     return look_up_dict[theta]
 
+
 def round_and_get_v_index(node):
     """
     Round x, y coordinates to nearest half to ensure we 
@@ -328,7 +330,7 @@ def round_and_get_v_index(node):
 
 def check_if_visited(V, curr_node_v, stepsize):
     h, w = V.shape[:2]
-    x, y, theta = curr_node_v 
+    x, y = curr_node_v 
 
     step_size_i = max(int(stepsize // 2), 1)
 
@@ -346,12 +348,12 @@ def check_if_visited(V, curr_node_v, stepsize):
         return False
 
 
-
 def get_xy(node, move_theta, r=1):
     theta = node[2] + move_theta
     x     = node[0] + r * np.cos(np.deg2rad(theta))
     y     = node[1] + r * np.sin(np.deg2rad(theta))
     return (x, y, theta)
+
 
 def move_theta_0(node, r=1):
     theta =  0
@@ -378,12 +380,15 @@ def move_diag_down60(node, r=1):
 def is_valid_move(node, map):
     h, w = map.shape
     x, y, theta = node
-    x, y = math.floor(x), math.floor(y)
+
+    x, y = int(round(x)), int(round(y))
+
     if x < 0 or x >= w or y < 0 or y >= h:
         return False
     if map[y, x] == 0:
         return False
     return True
+
 
 def check_validity_with_user(map_data, start_state, goal_state, max_attempts=50):
     """
@@ -524,6 +529,7 @@ def explored_path_video(map_data, explored_path, save_folder_path, algo="Dijkstr
 
     for node in explored_path:
         node_xy = node[:2]
+        node_xy = (int(node_xy[0]), int(node_xy[1]))
 
         cv2.circle(color_map_inverted, node_xy,  1, (0, 255, 0), -1)
 
@@ -660,7 +666,7 @@ def main(generate_random=True, start_in=(5, 48, 30), goal_in=(175, 2, 30), save_
     V_2d = np.sum(V, axis=2)
     plot_cost_matrix(V_2d, start_state, goal_state, title=f"V Matrix Heatmap {algo}" )
 
-    
+  
     if solution_path:
         # Create Videos of Solution Path and Explored Path
         solution_path_video(map_data , solution_path, save_folder_path, algo=algo)
@@ -671,6 +677,7 @@ def main(generate_random=True, start_in=(5, 48, 30), goal_in=(175, 2, 30), save_
     end = time.time()
     print("Time to Find Path, Plot Cost Matrix, and create videos: ", round((end-start), 2), " seconds")
 
+    
     return start_state, goal_state, map_data, map_with_clearance, cost_matrix, obstacles, solution_path, cost_to_come, parent, explored_path, V
 
 
@@ -730,7 +737,7 @@ def a_star(start_state, goal_state, map_data, cost_matrix, obstacles, r=1):
     print(start_state)
 
     start_v_idx                      = (x_v_idx, y_v_idx, theta_v_idx)
-    cost_to_come[start_v_idx]        = 0.0       # cost_to_come is our Closed List
+    cost_to_come[(x_v_idx, y_v_idx)] = 0.0       # cost_to_come is our Closed List
     cost_matrix[y_v_idx, x_v_idx]    = f_start   # we'll store cost to reach node + heuristic cost to reach goal
     V[y_v_idx, x_v_idx, theta_v_idx] = 1
 
@@ -740,7 +747,7 @@ def a_star(start_state, goal_state, map_data, cost_matrix, obstacles, r=1):
         curr_f, curr_node = heapq.heappop(pq) # Pop node with lowest cost from priority queue
 
         curr_node_round, curr_x_v_idx, curr_y_v_idx, curr_theta_v_idx = round_and_get_v_index(curr_node) # Round to nearest half 
-        curr_cost_node = (curr_x_v_idx, curr_y_v_idx, curr_theta_v_idx)
+        curr_cost_node = (curr_x_v_idx, curr_y_v_idx)
         
         if euclidean_distance(curr_node, goal_state) <= 4.5:              # If goal state reached, generate path from start to gaol and break the loop
             solution_path = generate_path(parent, goal_state)
@@ -749,7 +756,7 @@ def a_star(start_state, goal_state, map_data, cost_matrix, obstacles, r=1):
             print("Cost: ", cost_to_come[curr_cost_node])
             break
 
-        if curr_f > cost_to_come[(curr_x_v_idx, curr_y_v_idx, curr_theta_v_idx)] + euclidean_distance(curr_node, goal_state):   # If we've found lower cost for this node, 
+        if curr_f > cost_to_come[curr_cost_node] + euclidean_distance(curr_node, goal_state):   # If we've found lower cost for this node, 
             continue                                # skip and don't expand this node
         # else:                                     # Only add node to explored path if it is visited and expanded
         #     explored_path.append(curr_node)       # If we've found a lower cost for the node, then we have already explored it
@@ -765,10 +772,11 @@ def a_star(start_state, goal_state, map_data, cost_matrix, obstacles, r=1):
 
         for next_node, next_cost in possible_moves:   # For each move, check if it is valid and not an obstacle
             next_node_round, next_x_v_idx, next_y_v_idx, next_theta_v_idx = round_and_get_v_index(next_node)
-            next_cost_node = (next_x_v_idx, next_y_v_idx, next_theta_v_idx)
+            next_cost_node = (next_x_v_idx, next_y_v_idx)
+            next_v_node    = (next_y_v_idx, next_x_v_idx, next_theta_v_idx)
 
             valid_move   = is_valid_move(next_node_round, map_data)
-            not_obstacle = (math.floor(next_node_round[0]), math.floor(next_node_round[1])) not in obstacles
+            not_obstacle = (next_node_round[0], next_node_round[1]) not in obstacles
 
             if valid_move and not_obstacle:     # Check if next node is valid and not on top of an obstacle
                 
@@ -782,9 +790,12 @@ def a_star(start_state, goal_state, map_data, cost_matrix, obstacles, r=1):
                 # we skip it with the continue statement above
 
                 visited = check_if_visited(V, next_cost_node, r)
-                if not visited:  #or new_cost < cost_to_come[next_cost_node]: 
-                    explored_path.append(curr_node_round)
+                
+                if (not visited) or (new_cost < cost_to_come.get(next_cost_node, float('inf')) ):
+                
+                    explored_path.append(next_cost_node)
                     cost_to_come[next_cost_node] = new_cost
+                    
                     parent[next_node]            = curr_node
                     # Add Heurstic cost to reach goal to cost to come to current node for prioritization
                     f_next                   = new_cost + euclidean_distance(next_node, goal_state)
@@ -854,7 +865,7 @@ save_folder_path = ["Dropbox", "UMD", "ENPM_661 - Path Planning for Robots", "Pr
 generate_random = False
 start_in = (5, 48, 30)
 goal_in  = (300, 220, 30)
-r = 1
+r = 5
 
 if __name__ == "__main__":
     save_folder_path = ["Dropbox", "UMD", "ENPM_661 - Path Planning for Robots", "Project 3"]
