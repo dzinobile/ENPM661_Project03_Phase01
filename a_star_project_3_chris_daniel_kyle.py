@@ -293,7 +293,7 @@ def create_solution_path_video(solution_path, rows, cols, window_size, pallet, C
     # Save frames as a video
     video_time = 10 # Seconds
     fps        = int(len(solution_frames) / video_time)
-    imageio.mimsave("solution.mp4", solution_frames, fps=fps)
+    imageio.mimsave("Solution_Path.mp4", solution_frames, fps=fps)
 
 
 #%%                    
@@ -372,6 +372,8 @@ def A_Star(start_node, goal_node, OL, parent, V, C2C, costsum, step, frames=[], 
     return False, explored, parent, frames, goal_node
 
 #%%
+create_video = True # Creating Video slows down execution time, set to False to just show the pygame window
+
 # Initialize pygame
 pygame.init()
 
@@ -380,7 +382,6 @@ window_size = (rows, cols)
 screen  = pygame.display.set_mode(window_size)
 pxarray = pygame.PixelArray(screen)
 frames  = []
-create_video = True # Creating Video slows down execution time, set to False to just show the pygame window
 
 DrawBoard(rows, cols, pxarray, pallet, C2C, thresh)
 
@@ -515,12 +516,14 @@ while running:
 
 
 
-# %% Create Explored Path .mp4 Video
+# %% Create Explored Path and Solution Path .mp4 Video
 
 # Save frames as a video
 video_time = 10 # Seconds
 fps        = int(len(frames) / video_time)
 imageio.mimsave("Explored_Path.mp4", frames, fps=fps)
-create_solution_path_video(solution, rows, cols, window_size, pxarray, pallet, C2C, thresh)
+
+solution = generate_path(parent, final_goal)
+create_solution_path_video(solution, rows, cols, window_size, pallet, C2C, thresh)
 
 # %%
