@@ -501,8 +501,8 @@ while running:
     pxarray[x,y] = pygame.Color(pallet["blue"])
     """
     
-    start_node = [0.0, (15.0, 20.0, 0.0)]
-    goal_node  = (415.0, 235.0)
+    start_node = [0.0, (48.0, 12.0, 0.0)]
+    goal_node  = (220.0, 550.0)
     parent     = {}
     costsum    = {}
     

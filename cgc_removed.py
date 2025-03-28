@@ -158,3 +158,97 @@ else:
     print("No solution found, aborting video generation")
 end = time.time()
 print("Time to Find Path, Plot Cost Matrix, and create videos: ", round((end-start), 2), " seconds")
+
+
+# %%
+
+
+
+solution_path = None
+pq            = []                                          # Open List
+cost_to_come  = {}                                          # Closed List
+explored_path = []                                          # List of all nodes expanded in search
+parent        = {start_state: None}                         # Dictionary to map child->parent to backtrack path to goal state
+f_start       = euclidean_distance(start_state, goal_state) # Heuristic function for start state 
+thresh        = 0.5
+V             = np.zeros(                                   # Visited Nodes
+                    (int(map_data.shape[0] / thresh),
+                        int(map_data.shape[1] / thresh),
+                        12)
+                ) 
+
+
+start_state, x_v_idx, y_v_idx, theta_v_idx    = round_and_get_v_index(start_state)
+print(start_state)
+
+start_v_idx                      = (x_v_idx, y_v_idx, theta_v_idx)
+cost_to_come[(y_v_idx, x_v_idx, theta_v_idx)] = 0.0       # cost_to_come is our Closed List
+cost_matrix[y_v_idx, x_v_idx]    = f_start   # we'll store cost to reach node + heuristic cost to reach goal
+V[y_v_idx, x_v_idx, theta_v_idx] = 1
+
+heapq.heappush(pq, (f_start, start_state))   # pq is our Open List
+
+while pq:
+    curr_f, curr_node = heapq.heappop(pq) # Pop node with lowest cost from priority queue
+
+    curr_node_round, curr_x_v_idx, curr_y_v_idx, curr_theta_v_idx = round_and_get_v_index(curr_node) # Round to nearest half 
+    curr_cost_node = (curr_y_v_idx, curr_x_v_idx, curr_theta_v_idx) # Get cost node for current node
+    V[curr_y_v_idx, curr_x_v_idx, curr_theta_v_idx] = 1
+    
+    if euclidean_distance(curr_node_round, goal_state) <= 1.5:              # If goal state reached, generate path from start to gaol and break the loop
+        solution_path = generate_path(parent, curr_node_round)
+        print("Found Solution to Goal:")
+        print(goal_state)
+        print("Cost: ", cost_to_come[curr_cost_node])
+        break
+
+    if curr_f > cost_to_come[curr_cost_node] + euclidean_distance(curr_node, goal_state):   # If we've found lower cost for this node, 
+        continue                                # skip and don't expand this node
+    # else:                                     # Only add node to explored path if it is visited and expanded
+    #     explored_path.append(curr_node)       # If we've found a lower cost for the node, then we have already explored it
+
+    possible_moves = [  move_theta_0(      curr_node, r), 
+                        move_diag_up_30(   curr_node, r), 
+                        move_diag_up60(    curr_node, r),
+                        move_diag_down_30( curr_node, r),
+                        move_diag_down60(  curr_node, r),
+                        ]
+        
+
+    for next_node, next_cost in possible_moves:   # For each move, check if it is valid and not an obstacle
+        next_node_round, next_x_v_idx, next_y_v_idx, next_theta_v_idx = round_and_get_v_index(next_node)
+        next_cost_node = (next_y_v_idx, next_x_v_idx, next_theta_v_idx)
+        next_v_node    = (next_y_v_idx, next_x_v_idx, next_theta_v_idx)
+
+        valid_move   = is_valid_move(next_node_round, map_data_wit_clearance)
+        not_obstacle = (next_node_round[0], next_node_round[1]) not in obstacles
+
+        if valid_move and not_obstacle:     # Check if next node is valid and not on top of an obstacle
+            
+            # We don't use our heuristic function here, we just use the cost to come to the current node + cost to reach next node
+            # This is the parameter we want to minimize, but we use the heuristic function to prioritize our queue
+            new_cost = cost_to_come[curr_cost_node] + next_cost
+
+            # Check if next has not been visited or if new cost is lower than previous cost to reach node
+            # For cases where we've found a lower cost to reach a node, we update the cost_to_come, parent, and cost_matrix
+            # and add the node back-in to the priority queue without removing the old node, if the old node is reached again
+            # we skip it with the continue statement above
+
+            visited = (V[next_y_v_idx, next_x_v_idx, next_theta_v_idx] == 1)
+            
+            if (not visited) or (new_cost < cost_to_come.get(next_v_node, float('inf')) ):
+            
+                explored_path.append(next_node_round)
+                cost_to_come[next_cost_node] = new_cost
+                
+                parent[next_node_round]            = curr_node_round
+                # Add Heurstic cost to reach goal to cost to come to current node for prioritization
+                f_next                   = new_cost + euclidean_distance(next_node_round, goal_state)
+                heapq.heappush(pq, (f_next, next_node_round))
+                cost_matrix[next_y_v_idx, next_x_v_idx] = new_cost
+                V[next_y_v_idx, next_x_v_idx, next_theta_v_idx] = 1
+
+if solution_path is None:
+    print("No Solution Found")
+
+print("A_star Expanded States: ", len(explored_path))

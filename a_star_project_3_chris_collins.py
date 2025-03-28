@@ -529,7 +529,7 @@ def solution_path_video(map_data, solution_path, save_folder_path, algo="Dijkstr
 def explored_path_video(map_data, explored_path, save_folder_path, algo="A_Star", solution_path=None, goal_reached=None):
     n            = len(explored_path)
     video_length = 10 # Seconds
-    fps          = 100 # Increased FPS to shorten Video
+    fps          = 100 
     num_frames   = video_length * fps # FPS
     if n < num_frames:
         skip = 1
@@ -784,7 +784,6 @@ def a_star(start_state, goal_state, map_data_wit_clearance, cost_matrix, obstacl
     print("Start State: ", start_state)
     print("Goal State: ", goal_state)
 
-    start_v_idx                      = (x_v_idx, y_v_idx, theta_v_idx)
     cost_to_come[(y_v_idx, x_v_idx, theta_v_idx)] = 0.0       # cost_to_come is our Closed List
     cost_matrix[y_v_idx, x_v_idx]    = f_start   # we'll store cost to reach node + heuristic cost to reach goal
     V[y_v_idx, x_v_idx, theta_v_idx] = 1
@@ -858,7 +857,7 @@ def a_star(start_state, goal_state, map_data_wit_clearance, cost_matrix, obstacl
 
     print("A_star Expanded States: ", len(explored_path))
 
-    return solution_path, cost_to_come, parent, cost_matrix, explored_path, V, goal_state
+    return solution_path, cost_to_come, parent, cost_matrix, explored_path, V, goal_reached
 
 
 def run_test_cases(algo='A_star'):
