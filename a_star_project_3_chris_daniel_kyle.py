@@ -187,27 +187,25 @@ def InObjectSpace(x, y):
 
 # Backtrace the solution path from the goal state to the initial state
 # Add all nodes to the "solution" queue
-def GeneratePath(CurrentNode):
-    global CL
-    global solution
+def GeneratePath(CurrentNode, parent, start_state):
+    solution = []
+    backtracing = True
     
-    # Copy CL to a temp CL list, as to avoid accidentally destroying the main CL
-    # as well as avoiding potentially disrupting the order
-    tempCL = copy.deepcopy(CL)
-    child = copy.deepcopy(CurrentNode)
-    solution.appendleft(CurrentNode)
+    solution.append(CurrentNode)
+    node = parent[CurrentNode]
     
-    # Traverse through the temp CL by popping arbitrary values
-    # Check each popped item to determine if index matches the "parent_index"
-    # of the child being checked
-    # If it does, add it to the Solution deque
-    while tempCL:
-        key, parent = tempCL.popitem()
-        if(parent[1] == child[2]):
-            solution.appendleft(parent)
-            child = copy.deepcopy(parent)
-
-    return
+    print(solution)
+    
+    while backtracing:
+        if(node == start_state):
+            solution.append(node)
+            backtracing = False
+        else:
+            solution.append(node)
+            node = parent[node]
+            
+    solution.reverse()
+    return solution
 
 def euclidean_distance(node, goal_state):
     # Calculate Euclidean Distance between current node and goal state
@@ -276,7 +274,7 @@ def A_Star(start_node, goal_node, OL, parent, V, C2C, costsum, step):
         pygame.display.update()
         
         if(euclidean_distance(fixed_node, goal_node) <= 1.5 ):
-            # GeneratePath(fixed_node, parent)
+            solution = GeneratePath(fixed_node, parent, start_state)
             print("Work In Progress, Please Excuse Our Dust")
             return True
         else:
@@ -427,7 +425,7 @@ while running:
     """
     
     start_node = [0.0, (15.0, 20.0, 0.0)]
-    goal_node =  (415.0,235.0)
+    goal_node =  (20.0,235.0)
     parent = {}
     costsum = {}
     
