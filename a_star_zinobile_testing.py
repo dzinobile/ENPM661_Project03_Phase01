@@ -3,9 +3,10 @@ import numpy as np
 import cv2
 import heapq
 
-scale_factor = 4
 
 # Scaling function to convert mm to pixels
+scale_factor = 4
+
 def scale(input):
     return input*scale_factor
 
@@ -18,6 +19,7 @@ map = np.zeros((h, w, 3), dtype=np.uint8)
 while True:
     clearance = scale(int(input("Enter clearance between 1 and 7 [mm]: ")))
     radius = scale(int(input("Enter robot radius between 1 and 7 [mm]: ")))
+    
     buffer = clearance+radius
     if clearance < scale(1) or clearance > scale(7):
         print("Error: clearance must be between 1 and 7")
@@ -38,6 +40,11 @@ for i in range(0,len(locations[0])):
 
 del map_limits
 del locations
+
+v1 = [(0,0,0,(0,0,0),(0,0,0))]*12
+v2 = [v1]*900
+v = [v2]*250
+
 
 # Function to add obstacles and buffer to boundary
 def add_boundary(inpt_x,inpt_y):
@@ -196,48 +203,54 @@ for x,y in boundary:
 while True:
     valid = True 
 
-    start_x = scale(int(input("Enter start x [mm]: ")))
-    start_y = h - scale(int(input("Enter start y [mm]: "))) # Subtract from height for origin at bottom left
-    start_t = 360 - (round(((int(input("Enter start angle [deg]: ")))/30),0))*30 # Round to nearest multiple of 30 and subtract from 360 for origin at bottom left
-    start_xy = (start_x,start_y)
-    start = (start_x,start_y,start_t)
+    start_x = input("Enter start x [mm]: ")
+    if start_x == '':
+        print("Error")
+        valid = False
     
-    end_x = scale(int(input("Enter goal x [mm]: ")))
-    end_y = h - scale(int(input("Enter goal y [mm]: "))) # Subtract from height for origin at bottom left
-    end_t = 0 # Ignoring goal angle for this assignment, default value given
-    end_xy = (end_x,end_y)
-    end = (end_x,end_y,end_t)
-
-    step_size = scale(int(input("Enter step size from 1 - 10 [mm]: ")))
-
-    # Create error message
-    message = "Error: "
-    if start_x <= 0 or start_x >= w:
-        message = message + "\n start x out of map bounds"
-        valid = False
-    if start_y <= 0 or start_y >= h:
-        message = message + "\n start y out of map bounds"
-        valid = False
-    if end_x <= 0 or end_x >= w:
-        message = message + "\n goal x out of map bounds"
-        valid = False
-    if end_y <= 0 or end_y >= h:
-        message = message + "\n goal y out of map bounds"
-        valid = False
-    if start_xy in boundary:
-        message = message + "\n start position inside buffer zone"
-        valid = False
-    if end_xy in boundary:
-        message = message + "\n end position inside buffer zone"
-        valid = False
-    if step_size < scale(1) or step_size > scale(10):
-        message = message + "\n step size outside of range"
-        valid = False
-
     if valid:
-        break # Break loop if no errors
+        start_x = scale(int(start_x))
+        start_y = h - scale(int(input("Enter start y [mm]: "))) # Subtract from height for origin at bottom left
+        start_t = 360 - (round(((int(input("Enter start angle [deg]: ")))/30),0))*30 # Round to nearest multiple of 30 and subtract from 360 for origin at bottom left
+        start_xy = (start_x,start_y)
+        start = (start_x,start_y,start_t)
+        
+        end_x = scale(int(input("Enter goal x [mm]: ")))
+        end_y = h - scale(int(input("Enter goal y [mm]: "))) # Subtract from height for origin at bottom left
+        end_t = 0 # Ignoring goal angle for this assignment, default value given
+        end_xy = (end_x,end_y)
+        end = (end_x,end_y,end_t)
 
-    print(message)
+        step_size = scale(int(input("Enter step size from 1 - 10 [mm]: ")))
+
+        # Create error message
+        message = "Error: "
+        if start_x <= 0 or start_x >= w:
+            message = message + "\n start x out of map bounds"
+            valid = False
+        if start_y <= 0 or start_y >= h:
+            message = message + "\n start y out of map bounds"
+            valid = False
+        if end_x <= 0 or end_x >= w:
+            message = message + "\n goal x out of map bounds"
+            valid = False
+        if end_y <= 0 or end_y >= h:
+            message = message + "\n goal y out of map bounds"
+            valid = False
+        if start_xy in boundary:
+            message = message + "\n start position inside buffer zone"
+            valid = False
+        if end_xy in boundary:
+            message = message + "\n end position inside buffer zone"
+            valid = False
+        if step_size < scale(1) or step_size > scale(10):
+            message = message + "\n step size outside of range"
+            valid = False
+
+        if valid:
+            break # Break loop if no errors
+
+        print(message)
 
 
 # Function to find euclidian distance between points
@@ -262,19 +275,17 @@ heapq.heapify(closed_list)
 heapq.heapify(open_list)
 
 # Push start node to open list
-start_ctotal = distance(start,end)
-
-
-heapq.heappush(open_list, (start_ctotal, 0, start, start))
+start_ctg = distance(start,end)
+heapq.heappush(open_list, (start_ctg, 0, start_ctg, start, start))
 
 # A star algorithm 
 def move(node,angle):
-
+    
     # Parent node information
     p_ctc = node[1]
-    p_x = node[3][0]
-    p_y = node[3][1]
-    p_coord = node[3]
+    p_x = node[4][0]
+    p_y = node[4][1]
+    p_coord = node[4]
     p_xy = (p_x, p_y)
 
     # Child node information
@@ -286,35 +297,59 @@ def move(node,angle):
 
     # Calculate child node cost to come, cost to go, and total cost
     c_ctc = p_ctc+step_size
-    c_ctg = distance(c_xy,end_xy)
+    c_ctg = distance(c_coord,end)
     c_tot = c_ctc+c_ctg
 
+    child_node = (c_tot, c_ctc, c_ctg, p_coord, c_coord)
+
     # Ignore node if path crosses buffer zone
+    if c_x < 1 or c_x > w:
+        return
+    if c_y < 1 or c_y > h:
+        return
     if line_cross(p_xy,c_xy):
         return
-    
+    # print(c_y,c_x)
+    #print(np.shape(v))
+    m_c_x = int(round(((c_x/scale_factor)*2),0))
+    m_c_y = int(round(((c_y/scale_factor)*2),0))
+    m_c_t = int(c_t/30)
+    #print(open_list)
+    if v[m_c_y][m_c_x][m_c_t] == (0,0,0,(0,0,0),(0,0,0)):
+        print("unexplored node")
+        v[m_c_y][m_c_x][m_c_t] = child_node
+        heapq.heappush(open_list, child_node)
+    else:
+        print("explored node")
+        if v[m_c_y][m_c_x][m_c_t][0] > c_tot:
+            print("replace node")
+            open_list.remove(v[m_c_y][m_c_x][m_c_t])
+            v[m_c_y][m_c_x][m_c_t] = child_node
+            heapq.heappush(open_list, child_node)
+        else:
+            return
     # Replace node in open list with child node if lower total cost node found within 0.5 mm
-    for item in open_list:
-        item_xy = (item[3][0],item[3][1])
-        item_t = item[3][2]        
-        if distance(c_xy,item_xy) <= scale(0.5): #and c_t == item_t:
-            if item[0] > c_tot:
-                open_list.remove(item)
-            else:
-                return
+    # for item in open_list:
+    #     item_xy = (item[4][0],item[4][1])        
+    #     if distance(c_xy,item_xy) <= scale(0.5):
+    #         if item[0] > c_tot:
+    #             open_list.remove(item)
+    #         else:
+    #             return
             
     # Push child node to open list
-    heapq.heappush(open_list, (c_tot, c_ctc, p_coord, c_coord))
-    return
+    
+    #print(open_list)
+    
 
 # Initial distance from goal
-dist_to_goal = start_ctotal
+dist_to_goal = start_ctg
 
 # Execute A star algorithm
 while True:
     parent_node = heapq.heappop(open_list) # Pop lowest cost node from open list
-    pxy = (parent_node[3][0],parent_node[3][1])
-    boundary.add(parent_node[3]) # Add node location to boundary set
+    pxy = (parent_node[4][0],parent_node[4][1])
+    boundary.add(parent_node[4]) # Add node location to boundary set
     heapq.heappush(closed_list, parent_node)
     dist_to_goal = distance(pxy,end_xy)
     
@@ -322,7 +357,8 @@ while True:
     # print(dist_to_goal)
 
     for item in [-2, -1, 0, 1, 2]:
-        ang = parent_node[3][2] + (30*item)
+        print(item)
+        ang = parent_node[4][2] + (30*item)
         ang = ang%360
         move(parent_node,ang)
     
@@ -331,12 +367,12 @@ while True:
 
 # Find final path
 final_path = []
-path_node = closed_list[-1][3]
+path_node = closed_list[-1][4]
 while path_node != start:
     for item in closed_list:
-        if item[3] == path_node: 
+        if item[4] == path_node: 
             final_path.append(item)
-            path_node = item[2]
+            path_node = item[3]
 
 final_path.sort() # reorder path to go from start to finish
 
@@ -344,8 +380,8 @@ final_path.sort() # reorder path to go from start to finish
 map_display = map.copy()
 
 for item in closed_list:
-    par_xy = (item[2][0],item[2][1])
-    chi_xy = (item[3][0],item[3][1])
+    par_xy = (item[3][0],item[3][1])
+    chi_xy = (item[4][0],item[4][1])
     cv2.line(map_display,par_xy,chi_xy,(255,255,255),1)
     cv2.circle(map_display,start_xy,int(scale(1.5)),(0,0,255),1)
     cv2.circle(map_display,end_xy,int(scale(1.5)),(0,0,255),-1)
@@ -355,8 +391,8 @@ for item in closed_list:
         break
 
 for item in final_path:
-    par_xy = (item[2][0],item[2][1])
-    chi_xy = (item[3][0],item[3][1])
+    par_xy = (item[3][0],item[3][1])
+    chi_xy = (item[4][0],item[4][1])
     cv2.line(map_display,par_xy,chi_xy,(0,0,255),1)
     frame = map_display.copy()
     cv2.imshow('animation',frame)

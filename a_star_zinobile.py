@@ -17,6 +17,7 @@ map = np.zeros((h, w, 3), dtype=np.uint8)
 while True:
     clearance = scale(int(input("Enter clearance between 1 and 7 [mm]: ")))
     radius = scale(int(input("Enter robot radius between 1 and 7 [mm]: ")))
+    
     buffer = clearance+radius
     if clearance < scale(1) or clearance > scale(7):
         print("Error: clearance must be between 1 and 7")
@@ -195,48 +196,54 @@ for x,y in boundary:
 while True:
     valid = True 
 
-    start_x = scale(int(input("Enter start x [mm]: ")))
-    start_y = h - scale(int(input("Enter start y [mm]: "))) # Subtract from height for origin at bottom left
-    start_t = 360 - (round(((int(input("Enter start angle [deg]: ")))/30),0))*30 # Round to nearest multiple of 30 and subtract from 360 for origin at bottom left
-    start_xy = (start_x,start_y)
-    start = (start_x,start_y,start_t)
+    start_x = input("Enter start x [mm]: ")
+    if start_x == '':
+        print("Error")
+        valid = False
     
-    end_x = scale(int(input("Enter goal x [mm]: ")))
-    end_y = h - scale(int(input("Enter goal y [mm]: "))) # Subtract from height for origin at bottom left
-    end_t = 0 # Ignoring goal angle for this assignment, default value given
-    end_xy = (end_x,end_y)
-    end = (end_x,end_y,end_t)
-
-    step_size = scale(int(input("Enter step size from 1 - 10 [mm]: ")))
-
-    # Create error message
-    message = "Error: "
-    if start_x <= 0 or start_x >= w:
-        message = message + "\n start x out of map bounds"
-        valid = False
-    if start_y <= 0 or start_y >= h:
-        message = message + "\n start y out of map bounds"
-        valid = False
-    if end_x <= 0 or end_x >= w:
-        message = message + "\n goal x out of map bounds"
-        valid = False
-    if end_y <= 0 or end_y >= h:
-        message = message + "\n goal y out of map bounds"
-        valid = False
-    if start_xy in boundary:
-        message = message + "\n start position inside buffer zone"
-        valid = False
-    if end_xy in boundary:
-        message = message + "\n end position inside buffer zone"
-        valid = False
-    if step_size < scale(1) or step_size > scale(10):
-        message = message + "\n step size outside of range"
-        valid = False
-
     if valid:
-        break # Break loop if no errors
+        start_x = scale(int(start_x))
+        start_y = h - scale(int(input("Enter start y [mm]: "))) # Subtract from height for origin at bottom left
+        start_t = 360 - (round(((int(input("Enter start angle [deg]: ")))/30),0))*30 # Round to nearest multiple of 30 and subtract from 360 for origin at bottom left
+        start_xy = (start_x,start_y)
+        start = (start_x,start_y,start_t)
+        
+        end_x = scale(int(input("Enter goal x [mm]: ")))
+        end_y = h - scale(int(input("Enter goal y [mm]: "))) # Subtract from height for origin at bottom left
+        end_t = 0 # Ignoring goal angle for this assignment, default value given
+        end_xy = (end_x,end_y)
+        end = (end_x,end_y,end_t)
 
-    print(message)
+        step_size = scale(int(input("Enter step size from 1 - 10 [mm]: ")))
+
+        # Create error message
+        message = "Error: "
+        if start_x <= 0 or start_x >= w:
+            message = message + "\n start x out of map bounds"
+            valid = False
+        if start_y <= 0 or start_y >= h:
+            message = message + "\n start y out of map bounds"
+            valid = False
+        if end_x <= 0 or end_x >= w:
+            message = message + "\n goal x out of map bounds"
+            valid = False
+        if end_y <= 0 or end_y >= h:
+            message = message + "\n goal y out of map bounds"
+            valid = False
+        if start_xy in boundary:
+            message = message + "\n start position inside buffer zone"
+            valid = False
+        if end_xy in boundary:
+            message = message + "\n end position inside buffer zone"
+            valid = False
+        if step_size < scale(1) or step_size > scale(10):
+            message = message + "\n step size outside of range"
+            valid = False
+
+        if valid:
+            break # Break loop if no errors
+
+        print(message)
 
 
 # Function to find euclidian distance between points
