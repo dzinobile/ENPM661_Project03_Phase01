@@ -507,10 +507,8 @@ def solution_path_video(map_data, solution_path, save_folder_path, algo="Dijkstr
 
     video_path   = os.path.join(my_path, "chris_collins_solution_proj3_" + algo + ".mp4")
 
-    try:  # Delete the output video if it already exists
+    if os.path.exists(video_path):
         os.remove(video_path)
-    except:
-        pass
 
     # Define the codec and create VideoWriter object
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
@@ -528,7 +526,7 @@ def solution_path_video(map_data, solution_path, save_folder_path, algo="Dijkstr
     writer.release()
 
 
-def explored_path_video(map_data, explored_path, save_folder_path, algo="A_Star", solution_path=None):
+def explored_path_video(map_data, explored_path, save_folder_path, algo="A_Star", solution_path=None, goal_reached=None):
     n            = len(explored_path)
     video_length = 10 # Seconds
     fps          = 100 # Increased FPS to shorten Video
@@ -542,7 +540,7 @@ def explored_path_video(map_data, explored_path, save_folder_path, algo="A_Star"
     color_map = map_data.copy()
     color_map = cv2.cvtColor(map_data, cv2.COLOR_GRAY2RGB)
     color_map_inverted = cv2.flip(color_map, 0)
-    start_state, goal_state = explored_path[0], explored_path[-1]
+    start_state = explored_path[0]
 
 
     my_path      = os.path.expanduser("~")
@@ -551,11 +549,9 @@ def explored_path_video(map_data, explored_path, save_folder_path, algo="A_Star"
 
 
     video_path = os.path.join(my_path, "chris_collins_explored_proj3_" + algo + ".mp4")
-
-    try:  # Delete the output video if it already exists
+    if os.path.exists(video_path):
         os.remove(video_path)
-    except:
-        pass
+
 
     # Define the codec and create VideoWriter object
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
@@ -563,7 +559,7 @@ def explored_path_video(map_data, explored_path, save_folder_path, algo="A_Star"
 
     # Draw start and goal states on map_data
     cv2.circle(color_map_inverted, (int(start_state[0]), int((h-1) - start_state[1])), 3, (255, 0, 0), 5)
-    cv2.circle(color_map_inverted, (int(goal_state[0]), int((h-1) - goal_state[1])), 3, (255, 0, 0), 5)
+    cv2.circle(color_map_inverted, (int(goal_reached[0]),  int((h-1) - goal_reached[1])),  3, (255, 0, 0), 5)
     writer.write(color_map_inverted)
 
     for i, node in enumerate(explored_path):
@@ -706,21 +702,21 @@ def main(generate_random=True, start_in=(5, 48, 30), goal_in=(175, 2, 30), save_
 
 
     # Run A* Algorithm
-    (solution_path, cost_to_come, parent, cost_matrix, explored_path, V
+    (solution_path, cost_to_come, parent, cost_matrix, explored_path, V, goal_state_reached
     ) = a_star(start_state, goal_state, map_data_wit_clearance, cost_matrix, obstacles, r=r)
 
     # Plot Heat Map of Cost Matrix
-    plot_cost_matrix(cost_matrix, start_state, goal_state, title=f"Cost Matrix Heatmap {algo}" )
+    plot_cost_matrix(cost_matrix, start_state, goal_state_reached, title=f"Cost Matrix Heatmap {algo}" )
 
     # Plot "Heat Map" of V Matrix
     V_2d = np.sum(V, axis=2)
-    plot_cost_matrix(V_2d, start_state, goal_state, title=f"V Matrix Heatmap {algo}" )
+    plot_cost_matrix(V_2d, start_state, goal_state_reached, title=f"V Matrix Heatmap {algo}" )
 
   
     if solution_path:
         # Create Videos of Solution Path and Explored Path
         solution_path_video(map_data_wit_clearance, solution_path, save_folder_path, algo=algo)
-        explored_path_video(map_data_wit_clearance, explored_path, save_folder_path, algo=algo, solution_path=solution_path)
+        explored_path_video(map_data_wit_clearance, explored_path, save_folder_path, algo=algo, solution_path=solution_path, goal_reached=goal_state_reached)
 
     else:
         print("No solution found, aborting video generation")
@@ -783,7 +779,6 @@ def a_star(start_state, goal_state, map_data_wit_clearance, cost_matrix, obstacl
                             12)
                     ) 
 
-
     start_state, x_v_idx, y_v_idx, theta_v_idx    = round_and_get_v_index(start_state)
     print("Starting A_Star Search for:")
     print("Start State: ", start_state)
@@ -793,6 +788,7 @@ def a_star(start_state, goal_state, map_data_wit_clearance, cost_matrix, obstacl
     cost_to_come[(y_v_idx, x_v_idx, theta_v_idx)] = 0.0       # cost_to_come is our Closed List
     cost_matrix[y_v_idx, x_v_idx]    = f_start   # we'll store cost to reach node + heuristic cost to reach goal
     V[y_v_idx, x_v_idx, theta_v_idx] = 1
+    goal_reached = goal_state
 
     heapq.heappush(pq, (f_start, start_state))   # pq is our Open List
 
@@ -808,6 +804,7 @@ def a_star(start_state, goal_state, map_data_wit_clearance, cost_matrix, obstacl
             print("Found Solution to Goal:")
             print(goal_state)
             print("Cost: ", cost_to_come[curr_cost_node])
+            goal_reached = curr_node_round
             break
 
         if curr_f > cost_to_come[curr_cost_node] + euclidean_distance(curr_node, goal_state):   # If we've found lower cost for this node, 
@@ -861,7 +858,7 @@ def a_star(start_state, goal_state, map_data_wit_clearance, cost_matrix, obstacl
 
     print("A_star Expanded States: ", len(explored_path))
 
-    return solution_path, cost_to_come, parent, cost_matrix, explored_path, V
+    return solution_path, cost_to_come, parent, cost_matrix, explored_path, V, goal_state
 
 
 def run_test_cases(algo='A_star'):
@@ -900,7 +897,7 @@ def run_case(case=1, algo='A_star'):
 
 
     (start_state, goal_state, map_data, map_with_clearance, cost_matrix, obstacles, 
-    solution_path, cost_to_come, parent, explored_path)  =  main(
+    solution_path, cost_to_come, parent, explored_path, V)  =  main(
         generate_random=generate_random, start_in=start_in, goal_in=goal_in, save_folder_path=save_folder_path, algo=algo, r=r)
     
     return start_state, goal_state, map_data, map_with_clearance, cost_matrix, obstacles, solution_path, cost_to_come, parent, explored_path
@@ -908,7 +905,7 @@ def run_case(case=1, algo='A_star'):
 
 
 
-# %%  Main Function to run A_star Algorithm -- Currently this is getting stuck in writing explored video and not completing
+# %%  Main Block to Run Test Case
 
 found_valid = True
 start       = time.time()  
@@ -916,7 +913,7 @@ algo        = "A_star"
 save_folder_path = ["Dropbox", "UMD", "ENPM_661 - Path Planning for Robots", "ENPM661_Project03_Phase01"]
 generate_random = False
 start_in = (12, 48, 30)
-goal_in  = (300, 220, 30)
+goal_in  = (500, 220, 30)
 r        = 1
 
 if __name__ == "__main__":
