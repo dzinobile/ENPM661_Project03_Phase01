@@ -31,6 +31,8 @@ CL = {}
 index_ctr = 0
 solution = []
 thresh = 0.5
+parent = {}
+costsum = {}
 V = np.zeros((int(rows/thresh), int(cols/thresh), 12))
 C2C = np.zeros((int(rows/thresh), int(cols/thresh)))
 
@@ -194,8 +196,6 @@ def GeneratePath(CurrentNode, parent, start_state):
     solution.append(CurrentNode)
     node = parent[CurrentNode]
     
-    print(solution)
-    
     while backtracing:
         if(node == start_state):
             solution.append(node)
@@ -218,30 +218,27 @@ def euclidean_distance(node, goal_state):
 # White: In object space
 # Green: Buffer Zone
 # Black: Action Space
-def DrawBoard(rows, cols, pxarray, pallet, C2C, thresh):
+def DrawBoard(rows, cols, pxarray, pallet, C2C, clear, r):
+    buff_mod = clear+r
     for x in range(0,rows):
         for y in range(0,cols):
             in_obj = InObjectSpace(x,y)
             if (in_obj):
                 pxarray[x,y] = pygame.Color(pallet["white"])
-                #C2C[x][y] = -1
             else:
-                if(((InObjectSpace(x+5,y)) or\
-                   (InObjectSpace(x-5,y)) or\
-                   (InObjectSpace(x,y+5)) or\
-                   (InObjectSpace(x,y-5)) or\
-                   (InObjectSpace(x+5,y+5)) or\
-                   (InObjectSpace(x-5,y-5)) or\
-                   (InObjectSpace(x+5,y-5)) or\
-                   (InObjectSpace(x-5,y+5))) and ((5<x<609) and (5<y<244))):
+                if(((InObjectSpace(x+buff_mod,y)) or\
+                   (InObjectSpace(x-buff_mod,y)) or\
+                   (InObjectSpace(x,y+buff_mod)) or\
+                   (InObjectSpace(x,y-buff_mod)) or\
+                   (InObjectSpace(x+buff_mod,y+buff_mod)) or\
+                   (InObjectSpace(x-buff_mod,y-buff_mod)) or\
+                   (InObjectSpace(x+buff_mod,y-buff_mod)) or\
+                   (InObjectSpace(x-buff_mod,y+buff_mod))) and ((buff_mod<x<(613-buff_mod) and (buff_mod<y<(248-buff_mod))))):
                     pxarray[x,y] = pygame.Color(pallet["green"])
-                    #C2C[x][y]=-1
-                elif(0<x<=5 or 609<=x<614 or 0<y<=5 or 244<=y<249):
+                elif(0<x<=buff_mod or (614-buff_mod)<=x<614 or 0<y<=buff_mod or (248-buff_mod)<=y<249):
                      pxarray[x,y] = pygame.Color(pallet["green"])
-                     #C2C[x][y]=-1
                 else:
                     pxarray[x,y] = pygame.Color(pallet["black"])
-                    #C2C[x][y]=np.inf
 
 def FillCostMatrix(C2C, pxarray, pallet, thresh):
     for x in range(0, int(rows/thresh)):
@@ -274,9 +271,9 @@ def A_Star(start_node, goal_node, OL, parent, V, C2C, costsum, step):
         pygame.display.update()
         
         if(euclidean_distance(fixed_node, goal_node) <= 1.5 ):
-            solution = GeneratePath(fixed_node, parent, start_state)
+            solution_path = GeneratePath(fixed_node, parent, start_state)
             print("Work In Progress, Please Excuse Our Dust")
-            return True
+            return True, solution_path
         else:
             actions = [move_diag_up_60(fixed_node, step),
                        move_diag_up_30(fixed_node, step),
@@ -289,19 +286,20 @@ def A_Star(start_node, goal_node, OL, parent, V, C2C, costsum, step):
                 child_node_fixed, child_x_v_idx, child_y_v_idx, child_theta_v_idx = round_and_get_v_index(child_node)
                 child_cost_node = (child_x_v_idx, child_y_v_idx, child_theta_v_idx)
                 
-                if((pxarray[int(child_node_fixed[0]), int(child_node_fixed[1])] == screen.map_rgb(pallet["white"])) or \
-                   (pxarray[int(child_node_fixed[0]), int(child_node_fixed[1])] == screen.map_rgb(pallet["green"]))): continue
+                try:
+                    if((pxarray[int(child_node_fixed[0]), int(child_node_fixed[1])] == screen.map_rgb(pallet["white"])) or \
+                       (pxarray[int(child_node_fixed[0]), int(child_node_fixed[1])] == screen.map_rgb(pallet["green"]))): continue
+                except IndexError:
+                    continue  # Attempted move was outside bounds of the map
                 
                 if(V[child_cost_node] == 0):
                     # What is the best way to check the OL here wihtout having to search it entirely? Maybe simply knowing that 
                     # the C2C is not infinity or -1 (checked previously) 
                     
-                    #in_openlist, OL = CheckOpenList(child_node_fixed, OL)
-                    
                     if(C2C[child_x_v_idx, child_y_v_idx]  == np.inf):
                        cost2go = euclidean_distance(child_node_fixed, goal_node)
-                       cost2come = C2C[x_v_idx, y_v_idx] + 1
-                       parent[child_node] = fixed_node
+                       cost2come = C2C[x_v_idx, y_v_idx] + step
+                       parent[child_node_fixed] = fixed_node
                        
                        C2C[child_x_v_idx, child_y_v_idx] = cost2come
                        costsum[child_cost_node] = cost2come + cost2go
@@ -310,10 +308,10 @@ def A_Star(start_node, goal_node, OL, parent, V, C2C, costsum, step):
                        
                 else:
                     cost2go = euclidean_distance(child_node_fixed, goal_node)
-                    cost2come = C2C[x_v_idx, y_v_idx] + 1
+                    cost2come = C2C[x_v_idx, y_v_idx] + step
                     
                     if(costsum[child_cost_node] > (cost2come + cost2go)):
-                        parent[child_node] = fixed_node
+                        parent[child_node_fixed] = fixed_node
                         C2C[child_x_v_idx, child_y_v_idx] = cost2come
                         costsum[child_cost_node] = cost2come + cost2go
     return False
@@ -326,10 +324,10 @@ window_size = (rows, cols)
 screen = pygame.display.set_mode(window_size)
 pxarray = pygame.PixelArray(screen)
 
-DrawBoard(rows, cols, pxarray, pallet, C2C, thresh)
+# DrawBoard(rows, cols, pxarray, pallet, C2C, thresh)
 
-# Update the screen
-pygame.display.update()
+# # Update the screen
+# pygame.display.update()
 
 #################################################
 # Prompt User for starting and goal states
@@ -366,17 +364,29 @@ def GetUserInput():
             continue
         
         step_size = int(input("Enter step size from 1 to 10: "))
+        if(step_size < 1 or step_size > 10):
+            print("Sorry, that step size is not valid!")
+            continue
         
-        start_node = [0, 0, 0, (start_x, 49-start_y)]
-        C2C[start_x][start_y] = 0  # Set start node cost as 0 in C2C matrix
+        radius = int(input("Please enter a radius for Robbie the Robot greater than 0: "))
+        if(radius < 0):
+            print("Sorry, that radius is not valid!")
+            continue
+        
+        start_node = [0.0, (start_x, start_y, start_theta)]
         goal = (goal_x,goal_y)
      
         unanswered = False
 
-    return start_node, goal
+    return start_node, goal, step_size, radius
 
-# Insert start point into Open List
-#OL.put(start_node)
+
+start_node, goal_node, step, rradius = GetUserInput()
+
+DrawBoard(rows, cols, pxarray, pallet, C2C, thresh, rradius)
+
+# Update the screen
+pygame.display.update()
 
 # Grab start time before running the solver
 start_time = time.perf_counter()
@@ -389,15 +399,13 @@ while running:
         if event.type == pygame.QUIT:
             running = False
     
-    start_node = [0.0, (15.0, 20.0, 0.0)]
-    goal_node =  (20.0,235.0)
-    parent = {}
-    costsum = {}
-    
+    # start_node = [0.0, (15.0, 20.0, 0.0)]
+    # goal_node =  (432.0,235.0)
+           
     FillCostMatrix(C2C, pxarray, pallet, thresh)
     
     # Start A_Star algorithm solver, returns game state of either SUCCESS (True) or FAILURE (false)
-    alg_state = A_Star(start_node, goal_node, OL, parent, V, C2C, costsum, step=1)
+    alg_state, solution = A_Star(start_node, goal_node, OL, parent, V, C2C, costsum, step)
     
     if alg_state == False:
         print("Unable to find solution")
@@ -407,6 +415,16 @@ while running:
         running = False
     
     # Update the screen
+    pygame.display.update()
+
+# Draw start and goal points; start point will be filled, goal point will be hollow
+pygame.draw.circle(screen, pygame.Color(pallet["red"]), (int(start_node[1][0]), start_node[1][1]), radius=5.0, width=0) # Start node    
+pygame.draw.circle(screen, pygame.Color(pallet["red"]), (int(goal_node[0]), goal_node[1]), radius=5.0, width=1) # Goal node
+
+# Draw solution path
+for item in solution:
+    pygame.draw.circle(screen, pygame.Color(pallet["red"]), (int(round(item[0])), int(round(item[1]))), radius=1.0, width=0)
+   #pxarray[int(round(item[0])), int(round(item[1]))] = pygame.Color(pallet["red"])
     pygame.display.update()
     
 # Freeze screen on completed maze screen until user quits the game
