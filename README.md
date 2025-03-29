@@ -76,7 +76,7 @@ A* Algorithm:
                 3. Check if next node has not been visited or if new cost is lower than previous cost to reach node
                 4. If so, update cost_to_come, parent, and cost_matrix and add node back to Open List
                 5. If not, skip and continue
-            7. If no solution found, return None
+        4. If no solution found, return None
 
     Parameters:
         start_state:        Initial state of point robot as tuple of (x, y) coordinates
