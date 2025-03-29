@@ -93,3 +93,6 @@ A* Algorithm:
         explored_path:      List of all nodes expanded by the algorithm in search
         V:                  Visited nodes matrix with 1 for visited nodes and 0 for unvisited nodes
         goal_state_reached: Goal state reached by the algorithm
+
+
+Note: Looking forward we thought it may be important to check the orientation while we perform our A* search, this results in a large number of nodes being explored
