@@ -563,7 +563,7 @@ def plot_cost_matrix(cost_matrix, start_state, goal_state,  title="Cost Matrix H
     plt.show()
 
 
-def solution_path_video(map_data, solution_path, save_folder_path, algo="Dijkstra"):
+def solution_path_video(map_data, solution_path, save_folder_path, algo="A_Star"):
     fps       = 30
     h, w      = map_data.shape
     color_map = map_data.copy()
@@ -574,7 +574,7 @@ def solution_path_video(map_data, solution_path, save_folder_path, algo="Dijkstr
         my_path = os.path.join(my_path, folder)
 
 
-    video_path   = os.path.join(my_path, "chris_collins_solution_proj3_" + algo + ".mp4")
+    video_path   = os.path.join(my_path, "chris_daniel_kyle_solution_proj3_" + algo + ".mp4")
 
     if os.path.exists(video_path):
         os.remove(video_path)
@@ -631,7 +631,7 @@ def explored_path_video(map_data, explored_path, save_folder_path, algo="A_Star"
         my_path = os.path.join(my_path, folder)
 
 
-    video_path = os.path.join(my_path, "chris_collins_explored_proj3_" + algo + ".mp4")
+    video_path = os.path.join(my_path, "chris_daniel_kyle_explored_proj3_" + algo + ".mp4")
     if os.path.exists(video_path):
         os.remove(video_path)
 

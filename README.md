@@ -11,7 +11,7 @@ Dependencies:
     - numpy
     - matplotlib.pyplot
     - collections import deque 
-    - cv2
+    - cv2   (pip install opencv-contrib-python)
     - matplotlib.patches as patches
     - math
     - heapq
@@ -25,6 +25,20 @@ GitHub: https://github.com/dzinobile/ENPM661_Project03_Phase01
 We created our project 3, Phase 1 code in VS Code using code blocks. 
 
 The first block imports the necessary libraries, and all the functions we wrote for Project 3, Phase 1
+
+The second block is where a user can define a custom input case or if an invalid start/goal_state is entered, the code will prompt the user to input valid inputs:
+    found_valid = True   
+    start       = time.time()  
+    algo        = "A_star"
+    save_folder_path = ["Dropbox", "UMD", "ENPM_661 - Path Planning for Robots", "ENPM661_Project03_Phase01"]
+    generate_random = False
+    start_in = (10, 48, 30)
+    goal_in  = (500, 220, 30)
+    r        = 1
+
+If found_valid is set to False, the code will prompt the user to enter a custom start/goal state
+start_in/goal_in can be edited to define a valid custom case (or if invalid will be prompted to enter valid)
+generate_random 
 
 
 The code is executed as follows:
