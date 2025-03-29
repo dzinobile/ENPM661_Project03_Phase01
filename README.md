@@ -43,9 +43,15 @@ Team Members
  Known functional example
 #################################
 Enter the starting x-coordinate: 15
+
 Enter the starting y-coordinate: 20
+
 Enter the starting orientation (0-360 degrees): 60
+
 Enter the goal x-coordinate: 432
+
 Enter the goal y-coordinate: 235
+
 Enter step size from 1 to 10: 1
+
 Please enter a radius for Robbie the Robot greater than 0: 2
