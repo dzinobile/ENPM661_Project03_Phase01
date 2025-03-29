@@ -38,7 +38,7 @@ The second block is where a user can define a custom input case or if an invalid
 
 If found_valid is set to False, the code will prompt the user to enter a custom start/goal state
 start_in/goal_in can be edited to define a valid custom case (or if invalid will be prompted to enter valid)
-generate_random 
+setting generate_random to True will run random start/goal states
 
 
 The code is executed as follows:
@@ -46,7 +46,11 @@ The code is executed as follows:
     Step 2: Get Start/ Goal State, either from user or generate random valid start/goal state
     Step 3: Run A* Search and plot HeatMap of Cost Matrix and "Heat Map" of V Matrix
     Step 4: Create Output Video of solution path and explored path
-
+    
+- IMPORTANT: users should edit the save_folder_path by creating a list of the folder structure 
+   after the user's base directory to point the program where to save the videos
+   i.e. in my case, I had it save to "C:\Users\Chris\Dropbox\UMD\ENPM_671 - Path Planning for Robots"
+   so the input provided is ["Dropbox", "UMD", "ENPM_671 - Path Planning for Robots"]
 
 A* Algorithm:
 

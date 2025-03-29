@@ -315,13 +315,12 @@ def create_cost_matrix(map_img):
     return upscaled_cost_matrix
 
 
-def get_map_cost_matrix():
+def get_map_cost_matrix(clearance=5):
     # Create Map with Obstacles, Map with Obstacles + 2mm clearance and Cost Matrix
     start                 = time.time()
     map_width, map_height = 180, 50 # mm
     start_x, start_y      = 12,  12 # mm
     resize_x, resize_y    = 600, 250 # mm
-    robot_clearance       = 5       # mm
 
     map_img   = np.ones((map_height, map_width), dtype=np.uint8) * 255
 
@@ -347,7 +346,7 @@ def get_map_cost_matrix():
     map_img = draw(map_img, start_x, start_y, letter='1')
 
     upscaled_map       = cv2.resize(map_img, (resize_x, resize_y), interpolation=cv2.INTER_NEAREST)
-    map_with_clearance, obstacles = add_buffer(upscaled_map, buffer_size=robot_clearance)
+    map_with_clearance, obstacles = add_buffer(upscaled_map, buffer_size=clearance)
 
     map_with_clearance = draw(map_with_clearance, 0, 0, letter='Wall')
     
@@ -689,7 +688,7 @@ def generate_random_state(map_img, obstacles):
 
 
 
-def main(generate_random=True, start_in=(5, 48, 30), goal_in=(175, 2, 30), save_folder_path=None, algo='Dijkstra', r=1):
+def main(generate_random=True, start_in=(5, 48, 30), goal_in=(175, 2, 30), save_folder_path=None, algo='A_star', r=1, clearance=5):
     '''
     Main function to run A_Star Search to find lowest cost / shortest path from start to goal state
     and create videos of solution path and explored path
@@ -905,22 +904,33 @@ def a_star(start_state, goal_state, map_data_wit_clearance, cost_matrix, obstacl
 
 # %%  Main Block to Run Test Case
 
-found_valid = True
-start       = time.time()  
-algo        = "A_star"
+found_valid      = False
+start            = time.time()  
+algo             = "A_star"
 save_folder_path = ["Dropbox", "UMD", "ENPM_661 - Path Planning for Robots", "ENPM661_Project03_Phase01"]
-generate_random = False
-start_in = (10, 48, 30)
-goal_in  = (500, 220, 30)
-r        = 1
+generate_random  = False
+start_in = (1, 48, 30)   # intentional invalid input to prompt user to input
+goal_in  = (700, 220, 30) # intentional invalid input to prompt user to input
+
+r = int(input("Enter Step Size (1-10):"))
+if r < 1 or r > 10:
+    print("Invalid Step Size, using default of 1")
+    r = 1
+
+clearance = int(input("Enter Clearance/Robot Radius (1-5):"))
+if clearance < 1 or clearance > 5:
+    print("Invalid Clearance, using default of 5")
+    clearance = 5
 
 if __name__ == "__main__":
     save_folder_path = ["Dropbox", "UMD", "ENPM_661 - Path Planning for Robots", "ENPM661_Project03_Phase01"]
     algo             = "A_star"
     (start_state, goal_state, map_data, map_with_clearance, cost_matrix, obstacles, solution_path, cost_to_come, parent, explored_path, V
     )  =  main(
-        generate_random=generate_random, start_in=start_in, goal_in=goal_in, save_folder_path=save_folder_path, algo=algo, r=r)
+        generate_random=generate_random, start_in=start_in, goal_in=goal_in, save_folder_path=save_folder_path, algo=algo, r=r, clearance=clearance)
     
 
 
 
+
+# %%
