@@ -6,6 +6,19 @@ Group Members:
  - Kyle Demmerle   UID: 121383341
  - Dan Zinobile    UID: 121354464
 
+Dependencies:
+    - pandas
+    - numpy
+    - matplotlib.pyplot
+    - collections import deque 
+    - cv2
+    - matplotlib.patches as patches
+    - math
+    - heapq
+    - matplotlib import animation
+    - os
+    - time
+
 
 GitHub: https://github.com/dzinobile/ENPM661_Project03_Phase01
 
