@@ -42,6 +42,7 @@ Team Members
 #################################
  Known functional example
 #################################
+
 Enter the starting x-coordinate: 15
 
 Enter the starting y-coordinate: 20
