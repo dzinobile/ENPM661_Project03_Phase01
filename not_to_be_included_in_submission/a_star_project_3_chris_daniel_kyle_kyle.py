@@ -199,10 +199,10 @@ def InObjectSpace(x, y):
 # Add all nodes to the "solution" queue
 def generate_path(parent, goal_state):
     """
-    Generate the path from start state to goal state leveraging parent-child dictionary as input,
-    mapping child nodes to parent nodes. We start at goal state and work back to start state, appending 
-    each state to a list. We then reverse our list to get correct order of nodes
-    from start to goal.
+    Generate path from start state to goal state leveraging parent-child dictionary as input,
+    mapping child nodes to parent nodes. 
+    We start at goal state and work back to start state, appending 
+    each state to a list. We then reverse list to get correct order of nodes from start to goal
 
     parent:     Dictionary mapping child states to parent states
     goal_state: Goal state of the puzzle

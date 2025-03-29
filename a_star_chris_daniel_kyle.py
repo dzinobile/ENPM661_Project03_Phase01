@@ -12,7 +12,6 @@ import os
 import time
 
 
-
 def in_circle(x, y, cx, cy, r):
     # Check if (x, y) is in the circle centered at (cx, cy) with radius r
     return (x - cx)**2 + (y - cy)**2 <= r**2
@@ -227,20 +226,20 @@ def in_6(x, y, start_x, start_y):
 
     return curly_top, bottom_circle, tip_circle
 
-def in_wall(x, y, w, h, clearance=5):
+
+def in_wall(x, y, w, h):
     # Check if (x, y) is inside the wall
     # Coords wrt bottom-left origin\
+    clearance = 5
 
-    return(
-        in_rectangle(x, y, 0, clearance - 1, 0, h - 1) or
-        in_rectangle(x, y, w - clearance, w - 1, 0, h - 1) or
-        in_rectangle(x, y, 0, w - 1, 0, clearance - 1) or
-        in_rectangle(x, y, 0, w - 1, h - clearance, h - 1)
-    )
-    
+    return (
+            x < clearance                # left edge
+            or x >= w - clearance        # right edge
+            or y < clearance             # bottom edge
+            or y >= h - clearance        # top edge
+        )
 
-
-def draw(map_img, start_x, start_y, letter='E', clearance=5):
+def draw(map_img, start_x, start_y, letter='E'):
     h, w = map_img.shape
     for py in range(h):
         for px in range(w):
@@ -273,7 +272,7 @@ def draw(map_img, start_x, start_y, letter='E', clearance=5):
                     map_img[py, px] = 0
 
             elif letter == 'Wall': # Draw Wall
-                if in_wall(x_bl, y_bl, w, h, clearance=clearance):
+                if in_wall(x_bl, y_bl, w, h):
                     map_img[py, px] = 0
             
     return map_img
@@ -297,8 +296,6 @@ def add_buffer(map_img, buffer_size=5):
 
     # new_obstacles = (map_img == 255) & (map_with_clearance == 0)
 
-
-
     return map_img_copy, obstacles
 
 
@@ -316,6 +313,60 @@ def create_cost_matrix(map_img):
     upscaled_cost_matrix = np.repeat(np.repeat(cost_matrix, 2, axis=0), 2, axis=1)
 
     return upscaled_cost_matrix
+
+
+def get_map_cost_matrix():
+    # Create Map with Obstacles, Map with Obstacles + 2mm clearance and Cost Matrix
+    start                 = time.time()
+    map_width, map_height = 180, 50 # mm
+    start_x, start_y      = 12,  12 # mm
+    resize_x, resize_y    = 600, 250 # mm
+    robot_clearance       = 5       # mm
+
+    map_img   = np.ones((map_height, map_width), dtype=np.uint8) * 255
+
+    # Start x / y coordinates for each letter determined through trial/error and inspection
+    map_img = draw(map_img, start_x, start_y, letter='E')
+
+    start_x  = start_x + 21
+    map_img = draw(map_img, start_x, start_y, letter='N')
+
+    start_x   = start_x + 28
+    map_img = draw(map_img, start_x, start_y, letter='P')
+
+    start_x  = start_x + 18
+    map_img = draw(map_img, start_x, start_y, letter='M')
+
+    start_x = start_x  + 37
+    map_img = draw(map_img, start_x, start_y, letter='6')
+
+    start_x   = start_x + 26
+    map_img = draw(map_img, start_x, start_y, letter='6')
+
+    start_x   = start_x + 25
+    map_img = draw(map_img, start_x, start_y, letter='1')
+
+    upscaled_map       = cv2.resize(map_img, (resize_x, resize_y), interpolation=cv2.INTER_NEAREST)
+    map_with_clearance, obstacles = add_buffer(upscaled_map, buffer_size=robot_clearance)
+
+    map_with_clearance = draw(map_with_clearance, 0, 0, letter='Wall')
+    
+    cost_matrix        = create_cost_matrix(map_with_clearance)
+
+    plt.figure(figsize=(10, 10))
+    plt.imshow(upscaled_map, cmap='gray', origin='lower')
+    plt.title('Map with Obstacles')
+    plt.show()
+
+    plt.figure(figsize=(10, 10))
+    plt.imshow(map_with_clearance, cmap='gray', origin='lower')
+    plt.title('Map with Obstacles and Clearance')
+    plt.show()
+
+    end = time.time()
+    print("Time to Create Map: ", round((end-start), 2), " seconds")
+
+    return upscaled_map, map_with_clearance, cost_matrix, obstacles
 
 
 def get_theta_index(theta):
@@ -381,20 +432,15 @@ def get_xy(node, move_theta, r=1):
 def move_theta_0(node, r=1):
     theta =  0
     return get_xy(node, theta, r), r
-
-
 def move_diag_up_30(node, r=1):
     theta = 30
     return get_xy(node, theta, r), r
-
 def move_diag_up60(node, r=1):
     theta = 60
     return get_xy(node, theta, r), r
-
 def move_diag_down_30(node, r=1):
     theta = -30
     return get_xy(node, theta, r), r
-
 def move_diag_down60(node, r=1):
     theta = -60
     return get_xy(node, theta, r), r
@@ -406,14 +452,35 @@ def is_valid_move(node, map):
 
     x, y = int(round(x)), int(round(y))
 
-    if x < 0 or x >= w or y < 0 or y >= h:
+    if x < 0 or x >= w-1 or y < 0 or y >= h-1:
         return False
     if map[y, x] == 0:
         return False
     return True
 
 
-def check_validity_with_user(map_data, start_state, goal_state, max_attempts=50):
+def euclidean_distance(node, goal_state):
+    """
+    Calculate Euclidean Distance between current node and goal state
+    Euclidean Distance is the straight line distance between two points
+    distance metric used in A* Search
+    """
+    return math.sqrt((node[0] - goal_state[0])**2 + (node[1] - goal_state[1])**2)
+
+ 
+
+def check_user_theta(node):
+    """
+    Check if theta is a multiple of 30 degrees, if not prompt user to input new theta
+    """
+    theta = node[2]
+    if theta % 30 != 0:
+        print("Theta is not a multiple of 30 degrees")
+        theta = tuple(map(int, input(f"Enter new theta (0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330) as one number: ").split()))
+    return theta
+
+
+def check_validity_with_user(map_data, start_state, goal_state, max_attempts=10):
     """
     Check if initial and goal states are valid, if not prompt user to input new states
 
@@ -427,15 +494,19 @@ def check_validity_with_user(map_data, start_state, goal_state, max_attempts=50)
     i = 0
 
     while True:
+        i += 1
         try:
-            i += 1
             if not is_valid_move(start_state, map_data): # Check if initial state is valid, if not prompt user to input new state
                 print("Initial state is invalid")
-                start_state = tuple(map(int, input(f"{str(start_state)} invalid, Enter new start state (x y) as two numbers seperated by space: ").split()))
+                start_state = tuple(map(int, input(f"{str(start_state)} invalid, Enter new start state (x y theta) as three numbers seperated by space: ").split()))
+                start_theta = check_user_theta(start_state)                 # Check if theta is a multiple of 30 degrees, if not prompt user to input new theta
+                start_state = (start_state[0], start_state[1], start_theta) # Set new theta to start state
 
             if not is_valid_move(goal_state, map_data): # Check if goal state is valid, if not prompt user to input new state
                 print("Goal state is invalid")
-                goal_state = tuple(map(int, input(f"{str(goal_state)} invalid, Enter new goal state (x y) as two numbers seperated by space: ").split()))
+                goal_state = tuple(map(int, input(f"{str(goal_state)} invalid, Enter new goal state (x y theta) as three numbers seperated by space: ").split()))
+                goal_theta = check_user_theta(goal_state)                 # Check if theta is a multiple of 30 degrees, if not prompt user to input new theta
+                goal_state = (goal_state[0], goal_state[1], goal_theta) # Set new theta to start state
 
             if is_valid_move(start_state, map_data) and is_valid_move(goal_state, map_data): # If both states are valid, plot map_data with start and goal states
                 return start_state, goal_state
@@ -497,9 +568,7 @@ def solution_path_video(map_data, solution_path, save_folder_path, algo="Dijkstr
     h, w      = map_data.shape
     color_map = map_data.copy()
     color_map = cv2.cvtColor(map_data, cv2.COLOR_GRAY2RGB)
-
-    
-    my_path      = os.path.expanduser("~")
+    my_path   = os.path.expanduser("~")
 
     for folder in save_folder_path:
         my_path = os.path.join(my_path, folder)
@@ -527,10 +596,26 @@ def solution_path_video(map_data, solution_path, save_folder_path, algo="Dijkstr
 
 
 def explored_path_video(map_data, explored_path, save_folder_path, algo="A_Star", solution_path=None, goal_reached=None):
+    """
+    Create a video of the explored path and solution path
+    For large search cases, we skip frames to reduce run time 
+    by only plotting every len(explored_path) // 1000 frames
+    
+    explored_path:      List of states explored by algorithm
+    save_folder_path:   Path to save  video
+    algo:               Algorithm used to find path (A_Star, Dijkstra, etc.)
+    solution_path:      List of states in the solution path (optional)
+    goal_reached:       Goal state reached by the algorithm (optional)
+    
+    Returns: None
+    
+    """
+
     n            = len(explored_path)
     video_length = 10 # Seconds
     fps          = 100 
     num_frames   = video_length * fps # FPS
+    my_path      = os.path.expanduser("~")
     if n < num_frames:
         skip = 1
     else:
@@ -540,10 +625,8 @@ def explored_path_video(map_data, explored_path, save_folder_path, algo="A_Star"
     color_map = map_data.copy()
     color_map = cv2.cvtColor(map_data, cv2.COLOR_GRAY2RGB)
     color_map_inverted = cv2.flip(color_map, 0)
-    start_state = explored_path[0]
+    start_state        = explored_path[0]
 
-
-    my_path      = os.path.expanduser("~")
     for folder in save_folder_path:
         my_path = os.path.join(my_path, folder)
 
@@ -573,7 +656,7 @@ def explored_path_video(map_data, explored_path, save_folder_path, algo="A_Star"
 
     for i in range(len(solution_path)-1):
         # Draw solution path on map_data
-        solution_path_xy  = (int(solution_path[i][0]), (h-1) - int(solution_path[i][1]) )
+        solution_path_xy  = (int(solution_path[i][0]),    (h-1) - int(solution_path[i][1]) )
         solution_path_xy1  = (int(solution_path[i+1][0]), (h-1) - int(solution_path[i+1][1]) )
 
         cv2.line(color_map_inverted, solution_path_xy, solution_path_xy1, (0, 0, 255), 3)
@@ -594,69 +677,21 @@ def generate_random_state(map_img, obstacles):
     """
     h, w = map_img.shape
     while True:
-        x = np.random.randint(0, w-2)
-        y = np.random.randint(0, h-2)
+        x     = np.random.randint(0, w-2)
+        y     = np.random.randint(0, h-2)
+        theta = np.random.randint(0, 12, 1)[0] * 30 # Random theta in [0, 360) degrees
+
         if (x, y) not in obstacles:
-            return (x, y)
+            return (x, y, theta)
 
 
-def get_map_cost_matrix():
-    # Create Map with Obstacles, Map with Obstacles + 2mm clearance and Cost Matrix
-    start                 = time.time()
-    map_width, map_height = 180, 50 # mm
-    start_x, start_y      = 12,  12 # mm
-    resize_x, resize_y    = 600, 250 # mm
-    robot_clearance       = 5       # mm
 
-    map_img   = np.ones((map_height, map_width), dtype=np.uint8) * 255
 
-    # Start x / y coordinates for each letter determined through trial/error and inspection
-    map_img = draw(map_img, start_x, start_y, letter='E')
-
-    start_x  = start_x + 21
-    map_img = draw(map_img, start_x, start_y, letter='N')
-
-    start_x   = start_x + 28
-    map_img = draw(map_img, start_x, start_y, letter='P')
-
-    start_x  = start_x + 18
-    map_img = draw(map_img, start_x, start_y, letter='M')
-
-    start_x = start_x  + 37
-    map_img = draw(map_img, start_x, start_y, letter='6')
-
-    start_x   = start_x + 26
-    map_img = draw(map_img, start_x, start_y, letter='6')
-
-    start_x   = start_x + 25
-    map_img = draw(map_img, start_x, start_y, letter='1')
-
-    map_img = draw(map_img, 0, 0, letter='Wall', clearance=1)
-
-    upscaled_map       = cv2.resize(map_img, (resize_x, resize_y), interpolation=cv2.INTER_NEAREST)
-    map_with_clearance, obstacles = add_buffer(upscaled_map, buffer_size=robot_clearance)
-    
-    cost_matrix        = create_cost_matrix(map_with_clearance)
-
-    plt.figure(figsize=(10, 10))
-    plt.imshow(upscaled_map, cmap='gray', origin='lower')
-    plt.title('Map with Obstacles')
-    plt.show()
-
-    plt.figure(figsize=(10, 10))
-    plt.imshow(map_with_clearance, cmap='gray', origin='lower')
-    plt.title('Map with Obstacles and Clearance')
-    plt.show()
-
-    end = time.time()
-    print("Time to Create Map: ", round((end-start), 2), " seconds")
-
-    return upscaled_map, map_with_clearance, cost_matrix, obstacles
 
 
 def main(generate_random=True, start_in=(5, 48, 30), goal_in=(175, 2, 30), save_folder_path=None, algo='Dijkstra', r=1):
     '''
-    Main function to run Dijkstra's or A_Star Search to find lowest cost / shortest path from start to goal state
+    Main function to run A_Star Search to find lowest cost / shortest path from start to goal state
     and create videos of solution path and explored path
 
 
@@ -695,7 +730,7 @@ def main(generate_random=True, start_in=(5, 48, 30), goal_in=(175, 2, 30), save_
 
     
     else: # Use User Provided Start/ Goal State
-        start_state, goal_state = check_validity_with_user(map_data_wit_clearance, start_in, goal_in)# Use User Provided Start/ Goal State
+        start_state, goal_state = check_validity_with_user(map_data_wit_clearance, start_in, goal_in) # Use User Provided Start/ Goal State
 
     # Step 3: Run Search Algorithm
     start = time.time()
@@ -727,15 +762,6 @@ def main(generate_random=True, start_in=(5, 48, 30), goal_in=(175, 2, 30), save_
     return start_state, goal_state, map_data, map_with_clearance, cost_matrix, obstacles, solution_path, cost_to_come, parent, explored_path, V
 
 
-def euclidean_distance(node, goal_state):
-    """
-    Calculate Euclidean Distance between current node and goal state
-    Euclidean Distance is the straight line distance between two points
-    distance metric used in A* Search
-    """
-    return math.sqrt((node[0] - goal_state[0])**2 + (node[1] - goal_state[1])**2)
-
-
 
 
 def a_star(start_state, goal_state, map_data_wit_clearance, cost_matrix, obstacles, r=1):
@@ -743,27 +769,42 @@ def a_star(start_state, goal_state, map_data_wit_clearance, cost_matrix, obstacl
     Perform A* Search to find shortest path from start state to goal state based on provided map
     and an 8-connected grid.
 
-    Data Structure and Algorithm are same as Dijkstra's Algorithm, but we use Octile Distance to goal 
-    from current state as our heuristic function + cost to come to current state.  The only thing we need
-    to change relative to Dijkstra's Algorithm is to prioritze our queue based on cost_to_come + heuristic cost
-    to reach goal.
+    Data Structure and Algorithm are same as Dijkstra's Algorithm, but we use Euclideon distance to goal 
+    from current state as our heuristic function + cost to come to current state.  
 
-    I started with Manhatten Distance and then realized that Octile Distance was a better heuristic function
-    for a 8-connected grid
 
     Parameters:
-        start_state: Initial state of point robot as tuple of (x, y) coordinates
-        goal_state:  Goal state of point robot as tuple of (x, y) coordinates
-        map_data:    Map with obstacles
-        cost_matrix: Cost matrix with obstacles as -1 and free space as infinity
-        obstacles:   Set of obstacle coordinates
+        start_state:        Initial state of point robot as tuple of (x, y) coordinates
+        goal_state:         Goal state of point robot as tuple of (x, y) coordinates
+        map_data:           Map with obstacles
+        cost_matrix:        Cost matrix with obstacles as -1 and free space as infinity
+        obstacles:          Set of obstacle coordinates
 
     Returns:     
-        solution_path: List of states from the start state to goal state
-        cost_to_come:   Dictionary of cost to reach each node
-        parent:        Dictionary mapping child states to parent states
-        cost_matrix:   Cost matrix with updated costs to reach each node
-        explored_path: List of all nodes expanded by the algorithm in search
+        solution_path:      List of states from the start state to goal state
+        cost_to_come:       Dictionary of cost to reach each node
+        parent:             Dictionary mapping child states to parent states
+        cost_matrix:        Cost matrix with updated costs to reach each node
+        explored_path:      List of all nodes expanded by the algorithm in search
+        V:                  Visited nodes matrix with 1 for visited nodes and 0 for unvisited nodes
+        goal_state_reached: Goal state reached by the algorithm
+        
+        Steps:
+        1. Initialize Open List (priority queue) and Closed List (cost_to_come dictionary)
+        2. Add start state to Open List with cost to come + euclideon distance to reach goal
+        3. While Open List is not empty:
+            1. Pop node with lowest cost_to_come + cost_to_go from Open List
+            2. Check if node is within 1.5 mm of goal state, if it is, generate path and break loop
+            3. Check if node has higher cost than previously found cost, if it does, skip and continue
+            4. Add node to Closed List
+            5. Generate possible moves from current node
+            6. For each possible move:
+                1. Check if move is valid and not an obstacle
+                2. Calculate cost to reach next node
+                3. Check if next node has not been visited or if new cost is lower than previous cost to reach node
+                4. If so, update cost_to_come, parent, and cost_matrix and add node back to Open List
+                5. If not, skip and continue
+            7. If no solution found, return None
 
     """
     solution_path = None
@@ -785,7 +826,7 @@ def a_star(start_state, goal_state, map_data_wit_clearance, cost_matrix, obstacl
     print("Goal State: ", goal_state)
 
     cost_to_come[(y_v_idx, x_v_idx, theta_v_idx)] = 0.0       # cost_to_come is our Closed List
-    cost_matrix[y_v_idx, x_v_idx]    = f_start   # we'll store cost to reach node + heuristic cost to reach goal
+    cost_matrix[y_v_idx, x_v_idx]    = f_start                # we'll store cost to reach node + heuristic cost to reach goal
     V[y_v_idx, x_v_idx, theta_v_idx] = 1
     goal_reached = goal_state
 
@@ -860,48 +901,6 @@ def a_star(start_state, goal_state, map_data_wit_clearance, cost_matrix, obstacl
     return solution_path, cost_to_come, parent, cost_matrix, explored_path, V, goal_reached
 
 
-def run_test_cases(algo='A_star'):
-
-    test_points =[(1, 49), (1, 1), (179, 1), (179, 49), (5, 52), (181, 2)]
-    for test_point in test_points:
-        print("Test Point: ", test_point)
-        start_in        = (test_point[0], test_point[1])
-        goal_in         = (75, 4)
-        generate_random = False
-        start_in        = test_point
-
-        (start_state, goal_state, map_data, map_with_clearance, cost_matrix, obstacles, 
-        solution_path, cost_to_come, parent, explored_path)  =  main(
-            generate_random=generate_random, start_in=start_in, goal_in=goal_in, save_folder_path=save_folder_path, algo=algo)
-        
-
-def run_case(case=1, algo='A_star'):
-    if case == 1: # Valid Inputs provided (used for video creation that was submitted)
-        generate_random = False
-        start_in = (5, 48, 30)
-        goal_in  = (175, 10, 30)
-        r = 1
-        start_in = (start_in[0], start_in[1], start_in[2])
-        goal_in  = (goal_in[0], goal_in[1], goal_in[2])
-
-    elif case == 2: # Invalid Inputs provided (User Passes Start / Goal State)
-        generate_random = False
-        start_in = (5, 52)
-        goal_in  = (181, 2)
-    
-    elif case == 3: # Generate Random Valid Start/ Goal Points
-        generate_random = True
-        start_in = (5, 48)
-        goal_in  = (175, 2)
-
-
-    (start_state, goal_state, map_data, map_with_clearance, cost_matrix, obstacles, 
-    solution_path, cost_to_come, parent, explored_path, V)  =  main(
-        generate_random=generate_random, start_in=start_in, goal_in=goal_in, save_folder_path=save_folder_path, algo=algo, r=r)
-    
-    return start_state, goal_state, map_data, map_with_clearance, cost_matrix, obstacles, solution_path, cost_to_come, parent, explored_path
-
-
 
 
 # %%  Main Block to Run Test Case
@@ -911,19 +910,17 @@ start       = time.time()
 algo        = "A_star"
 save_folder_path = ["Dropbox", "UMD", "ENPM_661 - Path Planning for Robots", "ENPM661_Project03_Phase01"]
 generate_random = False
-start_in = (12, 48, 30)
+start_in = (10, 48, 30)
 goal_in  = (500, 220, 30)
 r        = 1
 
 if __name__ == "__main__":
     save_folder_path = ["Dropbox", "UMD", "ENPM_661 - Path Planning for Robots", "ENPM661_Project03_Phase01"]
     algo             = "A_star"
-    (start_state, goal_state, map_data, map_with_clearance, cost_matrix, obstacles, 
-    solution_path, cost_to_come, parent, explored_path, V)  =  main(
+    (start_state, goal_state, map_data, map_with_clearance, cost_matrix, obstacles, solution_path, cost_to_come, parent, explored_path, V
+    )  =  main(
         generate_random=generate_random, start_in=start_in, goal_in=goal_in, save_folder_path=save_folder_path, algo=algo, r=r)
     
 
-
-# %% Check some Edge cases
 
 
