@@ -33,7 +33,9 @@ Team Members
 #################################
 1) Unzip archive into directory you want to run from 
 2) In terminal, navigate to the directory the file was saved in and run the following command:
+   
         > python3 a_star_chris_daniel_kyle.py 
+
 3) Follow instructions in user prompt to enter information needed for running the A* Solver
 
 
