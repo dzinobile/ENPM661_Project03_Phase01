@@ -4,14 +4,14 @@
 Dependencies
 ###########################
 
-import pygame
-import time
-import copy
-import math
-import heapq
-import numpy as np
-from queue import PriorityQueue
-from collections import deque
+import pygame \n
+import time \n
+import copy \n
+import math \n
+import heapq \n
+import numpy as np \n
+from queue import PriorityQueue \n
+from collections import deque \n
 
 ###########################
 Team Members
